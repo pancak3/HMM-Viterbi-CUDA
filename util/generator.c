@@ -24,14 +24,14 @@ int my_rand(int min, int max) {
 
 int main() {
     int i, j;
-    int state_num, observation_num, rand_obs_num;
-    scanf("%d %d %d", &state_num, &observation_num, &rand_obs_num);
-    printf("%d %d\n", state_num, observation_num);
+    int states, observations, observation_length;
+    scanf("%d %d %d", &states, &observations, &observation_length);
+    printf("%d %d\n", states, observations);
     float current_prob = 1;
     srand(1023);
 
     // start_prob
-    for (i = 0; i < state_num - 1; i++) {
+    for (i = 0; i < states - 1; i++) {
         printf("%.4f ", rand_prob(&current_prob));
     }
     printf("%.4f\n", current_prob);
@@ -39,28 +39,27 @@ int main() {
     // transition_prob
     current_prob = 1;
 
-    for (i = 0; i < state_num; i++) {
+    for (i = 0; i < states; i++) {
         current_prob = 1;
-        for (j = 0; j < state_num - 1; j++) {
+        for (j = 0; j < states - 1; j++) {
             printf("%.4f ", rand_prob(&current_prob));
         }
         printf("%.4f\n", current_prob);
     }
 
     // emission_prob
-    for (i = 0; i < state_num; i++) {
+    for (i = 0; i < states; i++) {
         current_prob = 1;
-        for (j = 0; j < observation_num - 1; j++) {
+        for (j = 0; j < observations - 1; j++) {
             printf("%.4f ", rand_prob(&current_prob));
         }
         printf("%.4f\n", current_prob);
     }
 
     // random obs
-
-    for (i = 0; i < rand_obs_num; i++) {
-        printf("%d ", my_rand(0, observation_num));
+    printf("%d\n", observation_length);
+    for (i = 0; i < observation_length; i++) {
+        printf("%d\n", my_rand(0, observations));
     }
-    printf("\n");
     return 0;
 }
