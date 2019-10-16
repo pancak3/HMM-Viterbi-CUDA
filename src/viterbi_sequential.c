@@ -29,12 +29,13 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     for (int i = 0; i < n_states; i++)
         curr_probs[i] = init_probabilities[i] *
                         emission_table[observations[0]][i];
-#ifdef DEBUG
-    printf("[STATE %2d, OBS %2d] ", i, observations[i]);
+//#ifdef DEBUG
+    printf("[*] ============= \n");
+    printf("[Time %2d, OBS %2d] ", 0, observations[0]);
     for (int j = 0; j < n_states; j++)
-            printf("%.4lf ", curr_probs[j]);
-        putchar('\n');
-#endif // DEBUG
+        printf("%.8lf ", curr_probs[j]);
+    putchar('\n');
+//#endif // DEBUG
 
     for (int i = 1; i < observations_length; i++) {
         // swap pointers for prev and curr probabilities
@@ -47,12 +48,12 @@ int *viterbi_sequential(int const n_states, int const n_observations,
                                 n_states, n_observations, j, observations[i],
                                 optimal_path + i - 1);
 
-#ifdef DEBUG
-        printf("[STATE %2d, OBS %2d] ", i, observations[i]);
+//#ifdef DEBUG
+        printf("[Time %2d, OBS %2d] ", 0, observations[0]);
         for (int j = 0; j < n_states; j++)
-            printf("%.4lf ", curr_probs[j]);
+            printf("%.8lf ", curr_probs[j]);
         putchar('\n');
-#endif // DEBUG
+//#endif // DEBUG
     }
 
     // calculate best option for last observation
@@ -70,11 +71,14 @@ double max(double const *prev_probs, double const **transition_matrix,
            double const **emission_table, int n_states, int n_observations,
            int curr_state, int observation, int *optimal_state) {
     double prob, max = 0;
-    for (int i = 0; i < n_observations; i++)
-        if ((prob = prev_probs[i] * transition_matrix[i][curr_state] *
-                    emission_table[observation][i]) > max) {
+    for (int i = 0; i < n_states; i++) {
+        // emission_table[i][observation] is not the same as input
+        prob = prev_probs[i] * transition_matrix[i][curr_state] *
+               emission_table[i][observation];
+        if (prob > max) {
             max = prob;
             *optimal_state = i;
         }
+    }
     return max;
 }

@@ -29,7 +29,7 @@ int main(int argc, char const **argv) {
     int *observation_table = read_observation(stdin, observations_length);
 
 #ifdef DEBUG
-    printf("States: %d, Emissions: %d\n", states, emissions);
+    printf("States: %d, Emissions: %d, Observation_length: %d\n", states, emissions, observations_length);
     printf("[INIT PROBABILITIES]\n");
     for (int i = 0; i < states; i++)
         printf("%.4lf ", init_probabilities[i]);
@@ -46,6 +46,11 @@ int main(int argc, char const **argv) {
             printf("%.4lf ", emission_table[i][j]);
         printf("\n");
     }
+    printf("[OBSERVATION TABLE]\n");
+    for (int i = 0; i < observations_length; i++) {
+        printf("%d ", observation_table[i]);
+    }
+    printf("\n");
 #endif // DEBUG
 
     int *optimal_path = viterbi_sequential(states, emissions, observation_table,
