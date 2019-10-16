@@ -15,8 +15,8 @@
 
 int main(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
-    int states, emissions, observations;
-    if (scanf("%d %d %d", &states, &emissions, &observations) != 3) {
+    int states, emissions, observations_length;
+    if (scanf("%d %d %d", &states, &emissions, &observations_length) != 3) {
 #ifdef DEBUG
         fprintf(stderr, "Cannot read # possible states and emissions.\n");
 #endif // DEBUG
@@ -26,7 +26,7 @@ int main(int argc, char const **argv) {
     double *init_probabilities = read_init_probabilities(stdin, states);
     double **transition_matrix = read_transition_matrix(stdin, states);
     double **emission_table = read_emission_table(stdin, states, emissions);
-    int *observation_table = read_observation(stdin, observations);
+    int *observation_table = read_observation(stdin, observations_length);
 
 #ifdef DEBUG
     printf("States: %d, Emissions: %d\n", states, emissions);
@@ -48,12 +48,11 @@ int main(int argc, char const **argv) {
     }
 #endif // DEBUG
 
+    int *optimal_path = viterbi_sequential(states, emissions,
+            init_probabilities, transition_matrix, emission_table);
 
-    int *optimal_path = malloc(emissions * sizeof(optimal_path));
-    optimal_path = viterbi(states, emissions, init_probabilities, transition_matrix, emission_table);
 #ifdef DEBUG
     printf("[OPTIMAL PATH]\n");
-
     for (int i = 0; i < emissions; i++) {
         printf("%d ", optimal_path[i]);
     }

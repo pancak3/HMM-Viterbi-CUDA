@@ -12,8 +12,8 @@ util: generator
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-driver: $(BINDIR) $(SRCDIR)driver.c
-	$(CC) $(CFLAGS) -o $(BINDIR)driver $(SRCDIR)driver.c
+driver: $(BINDIR) $(SRCDIR)driver.c sequential
+	$(CC) $(CFLAGS) -o $(BINDIR)driver $(SRCDIR)driver.c $(SRCDIR)viterbi_sequential.c
 
 sequential: $(BINDIR) $(SRCDIR)viterbi_sequential.c
 	$(CC) $(CFLAGS) -o $(BINDIR)viterbi_sequential $(SRCDIR)viterbi_sequential.c
