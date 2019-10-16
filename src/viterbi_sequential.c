@@ -1,8 +1,8 @@
 #include "../headers/viterbi_sequential.h"
 
-double max(double const *prev_probs, double const **emission_table,
-           int n_states, int n_observations, int observation,
-           int *optimal_state);
+double max(double const *prev_probs, double const **transition_matrix,
+           double const **emission_table, int n_states, int n_observations,
+           int curr_state, int observation, int *optimal_state);
 
 //int main_() {
 //    int states, emissions, observations;
@@ -43,8 +43,9 @@ int *viterbi_sequential(int const n_states, int const n_observations,
         curr_probs = temp;
 
         for (int j = 0; j < n_states; j++)
-            curr_probs[j] = max(prev_probs, emission_table, n_states,
-                                n_observations, j, optimal_path + i - 1);
+            curr_probs[j] = max(prev_probs, transition_matrix, emission_table,
+                                n_states, n_observations, j, observations[i],
+                                optimal_path + i - 1);
 
 #ifdef DEBUG
         printf("[STATE %2d, OBS %2d] ", i, observations[i]);
@@ -65,12 +66,13 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     return optimal_path;
 }
 
-double max(double const *prev_probs, double const **emission_table,
-           int n_states, int n_observations, int observation,
-           int *optimal_state) {
+double max(double const *prev_probs, double const **transition_matrix,
+           double const **emission_table, int n_states, int n_observations,
+           int curr_state, int observation, int *optimal_state) {
     double prob, max = 0;
     for (int i = 0; i < n_observations; i++)
-        if ((prob = prev_probs[i] * emission_table[observation][i]) > max) {
+        if ((prob = prev_probs[i] * transition_matrix[i][curr_state] *
+                    emission_table[observation][i]) > max) {
             max = prob;
             *optimal_state = i;
         }

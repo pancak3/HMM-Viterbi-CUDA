@@ -48,8 +48,10 @@ int main(int argc, char const **argv) {
     }
 #endif // DEBUG
 
-    int *optimal_path = viterbi_sequential(states, emissions,
-            init_probabilities, transition_matrix, emission_table);
+    int *optimal_path = viterbi_sequential(states, emissions, observation_table,
+                                           observations_length,
+                                           init_probabilities,
+                                           transition_matrix, emission_table);
 
 #ifdef DEBUG
     printf("[OPTIMAL PATH]\n");
