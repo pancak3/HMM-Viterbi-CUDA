@@ -9,10 +9,11 @@
  */
 
 #include "../headers/driver.h"
+#include "../headers/viterbi_sequential.h"
 
 #define DEBUG
 
-int main_driver(int argc, char const **argv) {
+int main(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
     int states, emissions, observations;
     if (scanf("%d %d %d", &states, &emissions, &observations) != 3) {
@@ -46,6 +47,17 @@ int main_driver(int argc, char const **argv) {
         printf("\n");
     }
 #endif // DEBUG
+
+
+    int *optimal_path = malloc(emissions * sizeof(optimal_path));
+    optimal_path = viterbi(states, emissions, init_probabilities, transition_matrix, emission_table);
+#ifdef DEBUG
+    printf("[OPTIMAL PATH]\n");
+
+    for (int i = 0; i < emissions; i++) {
+        printf("%d ", optimal_path[i]);
+    }
+#endif
 
     free(init_probabilities);
     free_2D_memory(transition_matrix, states);
