@@ -6,11 +6,14 @@ SRCDIR = src/
 UTILDIR = util/
 
 .PHONY: all util
-all: sequential util
+all: driver sequential util
 util: generator
 
 $(BINDIR):
 	mkdir -p $(BINDIR)
+
+driver: $(BINDIR) $(SRCDIR)driver.c
+	$(CC) $(CFLAGS) -o $(BINDIR)driver $(SRCDIR)driver.c
 
 sequential: $(BINDIR) $(SRCDIR)viterbi_sequential.c
 	$(CC) $(CFLAGS) -o $(BINDIR)viterbi_sequential $(SRCDIR)viterbi_sequential.c
