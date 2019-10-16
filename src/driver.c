@@ -8,21 +8,16 @@
  * Semester 2, 2019
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
+#include "../headers/driver.h"
 
-double *read_init_probabilities(FILE *f, int states);
-double **read_transition_matrix(FILE *f, int states);
-double **read_emission_table(FILE *f, int states, int emissions);
-void free_2D_memory(double **table, int rows);
+#define DEBUG
 
-int main(int argc, char const **argv) {
+int main_driver(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
     int states, emissions;
     if (scanf("%d %d", &states, &emissions) != 2) {
 #ifdef DEBUG
-        fprintf(stderr, "Cannot read # possible states and emissions.\n")
+        fprintf(stderr, "Cannot read # possible states and emissions.\n");
 #endif // DEBUG
         exit(EXIT_FAILURE);
     }
