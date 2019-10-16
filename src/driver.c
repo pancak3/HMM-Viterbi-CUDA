@@ -14,8 +14,8 @@
 
 int main_driver(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
-    int states, emissions;
-    if (scanf("%d %d", &states, &emissions) != 2) {
+    int states, emissions, observations;
+    if (scanf("%d %d %d", &states, &emissions, &observations) != 3) {
 #ifdef DEBUG
         fprintf(stderr, "Cannot read # possible states and emissions.\n");
 #endif // DEBUG
@@ -25,6 +25,7 @@ int main_driver(int argc, char const **argv) {
     double *init_probabilities = read_init_probabilities(stdin, states);
     double **transition_matrix = read_transition_matrix(stdin, states);
     double **emission_table = read_emission_table(stdin, states, emissions);
+    int *observation_table = read_observation(stdin, observations);
 
 #ifdef DEBUG
     printf("States: %d, Emissions: %d\n", states, emissions);
@@ -69,6 +70,26 @@ double *read_init_probabilities(FILE *f, int states) {
             return NULL;
 
     return init_probs;
+}
+
+/**
+ * Allocate and read an array of observations table from a specified file.
+ * Calling function must free() memory allocated.
+ * @param f File from which to read the observations table
+ * @param observations Number of observations table
+ * @return Pointer to array of observations table
+ */
+int *read_observation(FILE *f, int observations) {
+    // allocate memory
+    int *observations_table = malloc(observations * sizeof *observations_table);
+    assert(observations_table);
+
+    // read in values
+    for (int i = 0; i < observations; i++)
+        if (!fscanf(f, "%d", observations_table + i))
+            return NULL;
+
+    return observations_table;
 }
 
 /**

@@ -2,4 +2,7 @@
 cmake-build-debug/
 CMakeLists.txt
 
+generator
+input
+
 bin/
