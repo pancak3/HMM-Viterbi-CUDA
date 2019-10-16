@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/mpcp2.dir/util/generator.c.o  -o mpcp2 
