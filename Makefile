@@ -1,23 +1,35 @@
 CC = gcc
 CFLAGS = -std=c99
+LINKER = $(CC)
 
 BINDIR = bin/
+OBJDIR = obj/
 SRCDIR = src/
 UTILDIR = util/
 
 .PHONY: all util
-all: driver sequential util
-util: generator
+all: $(BINDIR)driver util
+util: $(BINDIR)generator
 
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-driver: $(BINDIR) $(SRCDIR)driver.c sequential
-	$(CC) $(CFLAGS) -o $(BINDIR)driver $(SRCDIR)driver.c $(SRCDIR)viterbi_sequential.c
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
 
-sequential: $(BINDIR) $(SRCDIR)viterbi_sequential.c
-	$(CC) $(CFLAGS) -o $(BINDIR)viterbi_sequential $(SRCDIR)viterbi_sequential.c
+$(BINDIR)driver: $(BINDIR) $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o 
+	$(LINKER) -o $(BINDIR)driver $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o
 
-generator: $(BINDIR) $(UTILDIR)generator.c
+$(OBJDIR)driver.o: $(OBJDIR) $(SRCDIR)driver.c
+	$(CC) $(CFLAGS) -o $(OBJDIR)driver.o -c $(SRCDIR)driver.c
+
+$(OBJDIR)viterbi_sequential.o: $(OBJDIR) $(SRCDIR)viterbi_sequential.c
+	$(CC) $(CFLAGS) -o $(OBJDIR)viterbi_sequential.o -c $(SRCDIR)viterbi_sequential.c
+
+$(BINDIR)generator: $(BINDIR) $(UTILDIR)generator.c
 	$(CC) $(CFLAGS) -o $(BINDIR)generator $(UTILDIR)generator.c
+
+.PHONY: clean
+clean:
+	rm -rf $(OBJDIR) $(BINDIR)
 
