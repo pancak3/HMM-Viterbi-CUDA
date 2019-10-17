@@ -20,7 +20,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
                         double const *init_probabilities,
                         double const **transition_matrix,
                         double const **emission_table) {
-    int *optimal_path = malloc(n_observations * sizeof *optimal_path);
+    int *optimal_path = malloc(observations_length * sizeof *optimal_path);
     double *prev_probs = malloc(n_states * sizeof *prev_probs);
     double *curr_probs = malloc(n_states * sizeof *curr_probs);
     assert(optimal_path && prev_probs && curr_probs);
@@ -38,6 +38,11 @@ int *viterbi_sequential(int const n_states, int const n_observations,
 //#endif // DEBUG
 
     for (int i = 1; i < observations_length; i++) {
+        // in case probs become 0
+        double normalisation = 1 / curr_probs[0];
+        for (int j = 0; j < n_states; j++) {
+            curr_probs[j] *= normalisation;
+        }
         // swap pointers for prev and curr probabilities
         double *temp = prev_probs;
         prev_probs = curr_probs;
@@ -55,6 +60,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
                 optimal_path[i - 1] = curr_state;
             }
         }
+
 
 
 //#ifdef DEBUG
