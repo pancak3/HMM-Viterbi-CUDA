@@ -38,7 +38,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
         for (int j = 0; j < n_states; j++) {
             // calculate the probability for all possibilities of prev. state
             for (int k = 0; k < n_states; k++)
-                temp[j] = transition_matrix[k][j] *
+                temp[k] = probs[i - 1][k] * transition_matrix[k][j] *
                           emission_table[j][observations[i]];
             // store the max probability and associated prev. state
             probs[i][j] = max(temp, n_states, backpaths[i] + j);
@@ -50,8 +50,18 @@ int *viterbi_sequential(int const n_states, int const n_observations,
         optimal_path + observations_length - 1);
 
     // follow back-paths to get most likely sequence
-    for (int i = observations_length - 1; i > 0; i++)
+    for (int i = observations_length - 1; i > 0; i--)
         optimal_path[i - 1] = backpaths[i][optimal_path[i]];
+
+#ifdef DEBUG
+    for (int i = 0; i < observations_length; i++) {
+        printf("Time:%d OBS:%d |\t", i, observations[i]);
+        for (int j = 0; j < n_states; j++) {
+            printf("%.4e ", probs[i][j]);
+        }
+        putchar('\n');
+    }
+#endif // DEBUG
 
     // free memory no longer required
     for (int i = 0; i < observations_length; i++) {
