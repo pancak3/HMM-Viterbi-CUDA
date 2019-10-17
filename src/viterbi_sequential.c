@@ -28,14 +28,15 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     assert(optimal_path && prev_probs && curr_probs);
 
     // calculate state probabilities for initial observation
+    double mean_prob = 0;
     double max_prob = 0;
     for (int i = 0; i < n_states; i++) {
         curr_probs[i] = init_probabilities[i] *
                         emission_table[i][observations[0]];
-        if (curr_probs[i] > max_prob) {
-            max_prob = curr_probs[i];
-        }
+
+        mean_prob += curr_probs[i];
     }
+    mean_prob /= n_states;
 
 //#ifdef DEBUG
     printf("[*] =======PATH NODES PROB======= \n");
@@ -45,12 +46,13 @@ int *viterbi_sequential(int const n_states, int const n_observations,
         // in case probs become 0
 
         for (int j = 0; j < n_states; j++) {
-            curr_probs[j] /= max_prob;
+            curr_probs[j] /= mean_prob;
         }
         // swap pointers for prev and curr probabilities
         double *temp = prev_probs;
         prev_probs = curr_probs;
         curr_probs = temp;
+        mean_prob = 0;
         max_prob = 0;
         for (int curr_state = 0; curr_state < n_states; curr_state++) {
 
@@ -63,7 +65,9 @@ int *viterbi_sequential(int const n_states, int const n_observations,
                 max_prob = curr_probs[curr_state];
                 optimal_path[i - 1] = curr_state;
             }
+            mean_prob += curr_probs[curr_state];
         }
+        mean_prob /= n_states;
 
 
 
@@ -72,7 +76,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
         for (int j = 0; j < n_states; j++) {
             if (optimal_path[i - 1] == j) {
                 putchar('[');
-            }else{
+            } else {
                 putchar(' ');
 
             }
@@ -89,14 +93,24 @@ int *viterbi_sequential(int const n_states, int const n_observations,
 //#ifdef  DEBUG
     printf("[Time %2d, OBS %2d] ", observations_length - 1,
            observations[observations_length - 1]);
-    putchar('\n');
 //#endif
 
     // calculate best option for last observation
     max_prob = 0;
     for (int i = 0; i < n_states; i++) {
 //#ifdef  DEBUG
-        printf("%.8lf ", curr_probs[i]);
+        if (optimal_path[i - 1] == i) {
+            putchar('[');
+        } else {
+            putchar(' ');
+
+        }
+        printf("%.8lf", curr_probs[i]);
+        if (optimal_path[i - 1] == i) {
+            printf("] ");
+        } else {
+            printf("  ");
+        }
 //#endif
         if (curr_probs[i] > max_prob) {
             max_prob = curr_probs[i];

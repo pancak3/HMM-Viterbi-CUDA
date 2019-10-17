@@ -67,6 +67,7 @@ int main(int argc, char const **argv) {
     for (int i = 0; i < observations_length; i++) {
         printf("%d ", optimal_path[i]);
     }
+    putchar('\n');
 #endif
 
 //    free(init_probabilities);
@@ -151,7 +152,7 @@ double **read_emission_table(FILE *f, int states, int emissions) {
     // allocate memory
     double **table = malloc(states * sizeof *table);
     assert(table);
-    for (int i = 0; i < emissions; i++) {
+    for (int i = 0; i < states; i++) {
         table[i] = malloc(emissions * sizeof *table[i]);
         assert(table[i]);
     }
