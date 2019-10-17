@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 
 float rand_prob(float *high);
 
@@ -29,7 +30,7 @@ int main() {
     scanf("%d %d %d", &states, &observations, &observation_length);
     printf("%d %d\n", states, observations);
     float current_prob = 1;
-    srand(1023);
+    srand(clock());
 
     // transition_prob
     float **transition_matrix = malloc(states * sizeof *transition_matrix);
