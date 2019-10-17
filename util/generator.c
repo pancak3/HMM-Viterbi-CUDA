@@ -32,7 +32,7 @@ double rand_prob(double *high) {
 }
 
 int my_rand(int min, int max) {
-    return pancake_rand() % (max - min + 1) + min;
+    return rand() % (max - min + 1) + min;
 }
 
 int G_RAND_SEED = 1023;
@@ -40,7 +40,7 @@ int G_RAND_SEED = 1023;
 int pancake_rand() {
     int rand_num, func_seed;
 
-    func_seed = (int) clock() + G_RAND_SEED;
+    func_seed = (int) clock() + G_RAND_SEED + time(NULL);
     func_seed *= func_seed;
     rand_num = (int) ((524288 * func_seed + 137438953471) % 2147483647);
     G_RAND_SEED = rand_num;
@@ -51,7 +51,7 @@ int pancake_rand() {
 int main() {
     int i, j;
     int states, observations, observation_length;
-    // observations < (10000 / MIN_PROB = 2000)
+    // observations < (10000 / MIN_PROB)
     scanf("%d %d %d", &states, &observations, &observation_length);
     printf("%d %d\n", states, observations);
 

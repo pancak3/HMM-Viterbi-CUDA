@@ -38,11 +38,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     }
 
 //#ifdef DEBUG
-    printf("[*] ============= \n");
-    printf("[Time %2d, OBS %2d] ", 0, observations[0]);
-    for (int j = 0; j < n_states; j++)
-        printf("%.8lf ", curr_probs[j]);
-    putchar('\n');
+    printf("[*] =======PATH NODES PROB======= \n");
 //#endif // DEBUG
 
     for (int i = 1; i < observations_length; i++) {
@@ -72,20 +68,44 @@ int *viterbi_sequential(int const n_states, int const n_observations,
 
 
 //#ifdef DEBUG
-        printf("[Time %2d, OBS %2d] ", i, observations[i]);
-        for (int j = 0; j < n_states; j++)
-            printf("%.8lf ", curr_probs[j]);
+        printf("[Time %2d, OBS %2d] ", i - 1, observations[i - 1]);
+        for (int j = 0; j < n_states; j++) {
+            if (optimal_path[i - 1] == j) {
+                putchar('[');
+            }else{
+                putchar(' ');
+
+            }
+            printf("%.8lf", curr_probs[j]);
+            if (optimal_path[i - 1] == j) {
+                printf("] ");
+            } else {
+                printf("  ");
+            }
+        }
         putchar('\n');
 //#endif // DEBUG
     }
+//#ifdef  DEBUG
+    printf("[Time %2d, OBS %2d] ", observations_length - 1,
+           observations[observations_length - 1]);
+    putchar('\n');
+//#endif
 
     // calculate best option for last observation
     max_prob = 0;
-    for (int i = 0; i < n_states; i++)
+    for (int i = 0; i < n_states; i++) {
+//#ifdef  DEBUG
+        printf("%.8lf ", curr_probs[i]);
+//#endif
         if (curr_probs[i] > max_prob) {
             max_prob = curr_probs[i];
             optimal_path[observations_length - 1] = i;
         }
+    }
+//#ifdef  DEBUG
+    putchar('\n');
+//#endif
 
     return optimal_path;
 }
