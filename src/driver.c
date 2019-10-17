@@ -30,23 +30,25 @@ int main(int argc, char const **argv) {
     int *observation_table = read_observation(stdin, observations_length);
 
 #ifdef DEBUG
-    printf("States: %d, Emissions: %d, Observation_length: %d\n", states, emissions, observations_length);
+    printf("States: %d, Emissions: %d, Observation_length: %d\n", states,
+           emissions, observations_length);
     printf("[INIT PROBABILITIES]\n");
     for (int i = 0; i < states; i++)
         printf("%.4lf ", init_probabilities[i]);
     printf("\n");
-    printf("[TRANSITION MATRIX]\n");
-    for (int i = 0; i < states; i++) {
-        for (int j = 0; j < states; j++)
-            printf("%.4lf ", transition_matrix[i][j]);
-        printf("\n");
-    }
     printf("[EMISSION PROBABILITIES]\n");
     for (int i = 0; i < states; i++) {
         for (int j = 0; j < emissions; j++)
             printf("%.4lf ", emission_table[i][j]);
         printf("\n");
     }
+    printf("[TRANSITION MATRIX]\n");
+    for (int i = 0; i < states; i++) {
+        for (int j = 0; j < states; j++)
+            printf("%.4lf ", transition_matrix[i][j]);
+        printf("\n");
+    }
+
     printf("[OBSERVATION TABLE]\n");
     for (int i = 0; i < observations_length; i++) {
         printf("%d ", observation_table[i]);
@@ -57,11 +59,12 @@ int main(int argc, char const **argv) {
     int *optimal_path = viterbi_sequential(states, emissions, observation_table,
                                            observations_length,
                                            init_probabilities,
-                                           (const double **) transition_matrix, (const double **) emission_table);
+                                           (const double **) transition_matrix,
+                                           (const double **) emission_table);
 
 #ifdef DEBUG
     printf("[OPTIMAL PATH]\n");
-    for (int i = 0; i < emissions; i++) {
+    for (int i = 0; i < observations_length; i++) {
         printf("%d ", optimal_path[i]);
     }
 #endif
