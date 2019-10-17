@@ -69,9 +69,9 @@ int main(int argc, char const **argv) {
     }
 #endif
 
-    free(init_probabilities);
-    free_2D_memory(transition_matrix, states);
-    free_2D_memory(emission_table, states);
+//    free(init_probabilities);
+//    free_2D_memory(transition_matrix, states);
+//    free_2D_memory(emission_table, states);
 }
 
 /**

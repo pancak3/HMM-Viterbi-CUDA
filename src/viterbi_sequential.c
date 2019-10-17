@@ -1,4 +1,6 @@
+#include <math.h>
 #include "../headers/viterbi_sequential.h"
+
 
 double max(double const *prev_probs, double const **transition_matrix,
            double const **emission_table, int n_states,
@@ -26,9 +28,15 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     assert(optimal_path && prev_probs && curr_probs);
 
     // calculate state probabilities for initial observation
-    for (int i = 0; i < n_states; i++)
+    double max_prob = 0;
+    for (int i = 0; i < n_states; i++) {
         curr_probs[i] = init_probabilities[i] *
                         emission_table[i][observations[0]];
+        if (curr_probs[i] > max_prob) {
+            max_prob = curr_probs[i];
+        }
+    }
+
 //#ifdef DEBUG
     printf("[*] ============= \n");
     printf("[Time %2d, OBS %2d] ", 0, observations[0]);
@@ -39,15 +47,15 @@ int *viterbi_sequential(int const n_states, int const n_observations,
 
     for (int i = 1; i < observations_length; i++) {
         // in case probs become 0
-        double normalisation = 1 / curr_probs[0];
+
         for (int j = 0; j < n_states; j++) {
-            curr_probs[j] *= normalisation;
+            curr_probs[j] /= max_prob;
         }
         // swap pointers for prev and curr probabilities
         double *temp = prev_probs;
         prev_probs = curr_probs;
         curr_probs = temp;
-        double max_prob = 0;
+        max_prob = 0;
         for (int curr_state = 0; curr_state < n_states; curr_state++) {
 
             curr_probs[curr_state] = max(prev_probs, transition_matrix,
@@ -72,7 +80,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     }
 
     // calculate best option for last observation
-    double max_prob = 0;
+    max_prob = 0;
     for (int i = 0; i < n_states; i++)
         if (curr_probs[i] > max_prob) {
             max_prob = curr_probs[i];
