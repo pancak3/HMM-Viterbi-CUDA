@@ -1,20 +1,7 @@
 #include <math.h>
 #include "../headers/viterbi_sequential.h"
 
-
-double max(double const *prev_probs, double const **transition_matrix,
-           double const **emission_table, int n_states,
-           int curr_state, int observation);
-
-//int main_() {
-//    int states, emissions, observations;
-//    scanf("%d %d %d", &states, &emissions, &observations);
-//    double *init_probabilities = read_init_probabilities(stdin, states);
-//    double **transition_matrix = read_transition_matrix(stdin, states);
-//    double **emission_table = read_emission_table(stdin, states, emissions);
-//    int *observation_table = read_observation(stdin, observations);
-//    return 0;
-//}
+double max(double const *vals, int const n, int *imax);
 
 int *viterbi_sequential(int const n_states, int const n_observations,
                         int const *observations,
@@ -22,119 +9,68 @@ int *viterbi_sequential(int const n_states, int const n_observations,
                         double const *init_probabilities,
                         double const **transition_matrix,
                         double const **emission_table) {
+    // allocate memory to store probabilities and back-paths
+    double **probs = malloc(observations_length * sizeof *probs);
+    int **backpaths = malloc(observations_length * sizeof *backpaths);
+    assert(probs && backpaths);
+    for (int i = 0; i < observations_length; i++) {
+        probs[i] = calloc(n_states, sizeof *probs[i]);
+        backpaths[i] = calloc(n_states, sizeof *backpaths[i]);
+        assert(probs[i] && backpaths[i]);
+    }
+
+    // buffer to store temporary values
+    double *temp = malloc(n_states * sizeof *temp);
+    assert(temp);
+
+    // allocate memory to store final path
     int *optimal_path = malloc(observations_length * sizeof *optimal_path);
-    double *prev_probs = malloc(n_states * sizeof *prev_probs);
-    double *curr_probs = malloc(n_states * sizeof *curr_probs);
-    assert(optimal_path && prev_probs && curr_probs);
+    assert(optimal_path);
 
     // calculate state probabilities for initial observation
-    double mean_prob = 0;
-    double max_prob = 0;
+    for (int i = 0; i < n_states; i++)
+        probs[0][i] = init_probabilities[i] *
+                      emission_table[i][observations[0]];
 
-    // the first T
-    for (int i = 0; i < n_states; i++) {
-        curr_probs[i] = init_probabilities[i] *
-                        emission_table[i][observations[0]];
-
-        mean_prob += curr_probs[i];
-    }
-    mean_prob /= n_states;
-
-//#ifdef DEBUG
-    printf("[*] =======PATH NODES PROB======= \n");
-//#endif // DEBUG
-    printf("[Time %2d, OBS %2d] ", 0, observations[0]);
-    for (int j = 0; j < n_states; j++) {
-        if (optimal_path[0] == j) {
-            putchar('[');
-        } else {
-            putchar(' ');
-
-        }
-        printf("%.8lf", curr_probs[j]);
-        if (optimal_path[0] == j) {
-            printf("] ");
-        } else {
-            printf("  ");
-        }
-    }
-    putchar('\n');
+    // calculate state probabilities for subsequent observations
     for (int i = 1; i < observations_length; i++) {
-
-        // swap pointers for prev and curr probabilities
-        double *temp = prev_probs;
-        prev_probs = curr_probs;
-        curr_probs = temp;
-        // in case probs become 0 i.e. normalisation
+        // calculate max probability of current observation for each state
         for (int j = 0; j < n_states; j++) {
-            prev_probs[j] /= mean_prob;
+            // calculate the probability for all possibilities of prev. state
+            for (int k = 0; k < n_states; k++)
+                temp[j] = transition_matrix[k][j] *
+                          emission_table[j][observations[i]];
+            // store the max probability and associated prev. state
+            probs[i][j] = max(temp, n_states, backpaths[i] + j);
         }
-
-        mean_prob = 0;
-        max_prob = 0;
-        for (int curr_state = 0; curr_state < n_states; curr_state++) {
-
-            curr_probs[curr_state] = max(prev_probs, transition_matrix,
-                                         emission_table,
-                                         n_states, curr_state,
-                                         observations[i]);
-
-            if (curr_probs[curr_state] > max_prob) {
-                max_prob = curr_probs[curr_state];
-                optimal_path[i - 1] = curr_state;
-            }
-            mean_prob += curr_probs[curr_state];
-        }
-        mean_prob /= n_states;
-
-
-
-//#ifdef DEBUG
-        printf("[Time %2d, OBS %2d] ", i, observations[i]);
-        for (int j = 0; j < n_states; j++) {
-            if (optimal_path[i - 1] == j) {
-                putchar('[');
-            } else {
-                putchar(' ');
-
-            }
-            printf("%.8lf", curr_probs[j]);
-            if (optimal_path[i - 1] == j) {
-                printf("] ");
-            } else {
-                printf("  ");
-            }
-        }
-        putchar('\n');
-//#endif // DEBUG
     }
 
-    // calculate best option for last observation
-    max_prob = 0;
-    for (int i = 0; i < n_states; i++) {
-        if (curr_probs[i] > max_prob) {
-            max_prob = curr_probs[i];
-            optimal_path[observations_length - 1] = i;
-        }
+    // determine most probable final state
+    max(probs[observations_length - 1], n_states,
+        optimal_path + observations_length - 1);
+
+    // follow back-paths to get most likely sequence
+    for (int i = observations_length - 1; i > 0; i++)
+        optimal_path[i - 1] = backpaths[i][optimal_path[i]];
+
+    // free memory no longer required
+    for (int i = 0; i < observations_length; i++) {
+        free(probs[i]);
+        free(backpaths[i]);
     }
-//#ifdef  DEBUG
-    putchar('\n');
-//#endif
+    free(probs);
+    free(backpaths);
+    free(temp);
 
     return optimal_path;
 }
 
-double max(double const *prev_probs, double const **transition_matrix,
-           double const **emission_table, int n_states,
-           int curr_state, int observation) {
-    double prob, max = 0;
-    for (int i = 0; i < n_states; i++) {
-        // emission_table[i][observation] is not the same as input
-        prob = prev_probs[i] * transition_matrix[i][curr_state] *
-               emission_table[i][observation];
-        if (prob > max) {
-            max = prob;
+double max(double const *vals, int const n, int *imax) {
+    double max = 0;
+    for (int i = 0; i < n; i++)
+        if (vals[i] > max) {
+            max = vals[i];
+            *imax = i;
         }
-    }
     return max;
 }
