@@ -17,5 +17,5 @@ set(SOURCE_FILES src/viterbi_sequential.c src/driver.c headers/driver.h
 #        headers/viterbi_sequential.h)
 # set(LD_LIBRARY_PATH /home/q/.openmpi/lib/ )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
-# target_link_libraries(${PROJECT_NAME} m)
+ target_link_libraries(${PROJECT_NAME} m)
 # target_link_libraries(${PROJECT_NAME} MPI_4)

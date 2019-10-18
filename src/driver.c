@@ -10,8 +10,8 @@
 
 #include "../headers/driver.h"
 #include "../headers/viterbi_sequential.h"
+#include <math.h>
 
-#define DEBUG
 
 int main(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
@@ -22,12 +22,20 @@ int main(int argc, char const **argv) {
 #endif // DEBUG
         exit(EXIT_FAILURE);
     }
-
-    double **transition_matrix = read_transition_matrix(stdin, states);
     double *init_probabilities = read_init_probabilities(stdin, states);
+    double **transition_matrix = read_transition_matrix(stdin, states);
     double **emission_table = read_emission_table(stdin, states, emissions);
     scanf("%d", &observations_length);
     int *observation_table = read_observation(stdin, observations_length);
+
+    for (int i = 0; i < states; i++) {
+        init_probabilities[i] = log(init_probabilities[i]);
+        for (int j = 0; j < states; j++)
+            transition_matrix[i][j] = log(transition_matrix[i][j]);
+        for (int j = 0; j < emissions; j++)
+            emission_table[i][j] = log(emission_table[i][j]);
+    }
+
 
 #ifdef DEBUG
     printf("States: %d, Emissions: %d, Observation_length: %d\n", states,

@@ -28,7 +28,7 @@ double rand_prob(double *high) {
 
     *high -= t;
 
-    return t;
+    return t + MIN_PROB;
 }
 
 int my_rand(int min, int max) {
@@ -58,44 +58,27 @@ int main() {
     double current_prob;
     srand(clock());
 
-    // transition_prob
-    double **transition_matrix = malloc(states * sizeof *transition_matrix);
-    assert(transition_matrix);
+    // start prob
+    current_prob = prob_sum - states * MIN_PROB;
     for (int i = 0; i < states; i++) {
-        transition_matrix[i] = malloc(states * sizeof *transition_matrix[i]);
-        assert(transition_matrix[i]);
+        printf("%.4f ", rand_prob(&current_prob));
     }
+    putchar('\n');
+
+    // transition_prob
     for (i = 0; i < states; i++) {
         current_prob = prob_sum - states * MIN_PROB;
         for (j = 0; j < states - 1; j++) {
-            transition_matrix[i][j] = rand_prob(&current_prob) + MIN_PROB;
-            printf("%.4f ", transition_matrix[i][j]);
+            printf("%.4f ", rand_prob(&current_prob));
         }
-        transition_matrix[i][j] = current_prob + MIN_PROB;
-        printf("%.4f\n", transition_matrix[i][j]);
+        printf("%.4f\n", current_prob + MIN_PROB);
     }
-
-    // calc stat prob with Bayes rule, but here raise : loss of precision
-    // ->  (0.9999 <= sum(P[i]) <= 1)
-    double *P = malloc(states * sizeof *P);
-    double denominator = 1;
-    for (int i = 1; i < states; i++) {
-        denominator += transition_matrix[0][i] / transition_matrix[i][0];
-    }
-    P[0] = 1 / denominator;
-    printf("%.4f ", P[0]);
-    for (int i = 1; i < states; i++) {
-        P[i] = P[0] * transition_matrix[0][i] / transition_matrix[i][0];
-        printf("%.4f ", P[i]);
-
-    }
-    printf("\n");
 
     // emission_prob
     for (i = 0; i < states; i++) {
         current_prob = 1 - observations * MIN_PROB;
         for (j = 0; j < observations - 1; j++) {
-            printf("%.4f ", rand_prob(&current_prob) + MIN_PROB);
+            printf("%.4f ", rand_prob(&current_prob));
         }
         printf("%.4f\n", current_prob + MIN_PROB);
     }

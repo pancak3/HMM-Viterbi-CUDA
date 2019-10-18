@@ -28,18 +28,20 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     assert(optimal_path);
 
     // calculate state probabilities for initial observation
-    for (int i = 0; i < n_states; i++)
-        probs[0][i] = init_probabilities[i] *
+    for (int i = 0; i < n_states; i++) {
+        probs[0][i] = init_probabilities[i] +
                       emission_table[i][observations[0]];
+    }
 
     // calculate state probabilities for subsequent observations
     for (int i = 1; i < observations_length; i++) {
         // calculate max probability of current observation for each state
         for (int j = 0; j < n_states; j++) {
             // calculate the probability for all possibilities of prev. state
-            for (int k = 0; k < n_states; k++)
-                temp[k] = probs[i - 1][k] * transition_matrix[k][j] *
+            for (int k = 0; k < n_states; k++) {
+                temp[k] = probs[i - 1][k] + transition_matrix[k][j] +
                           emission_table[j][observations[i]];
+            }
             // store the max probability and associated prev. state
             probs[i][j] = max(temp, n_states, backpaths[i] + j);
         }
@@ -75,12 +77,12 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     return optimal_path;
 }
 
-double max(double const *vals, int const n, int *imax) {
-    double max = 0;
+double max(double const *vals, int const n, int *idx_max) {
+    double max = log(0);
     for (int i = 0; i < n; i++)
         if (vals[i] > max) {
             max = vals[i];
-            *imax = i;
+            *idx_max = i;
         }
     return max;
 }

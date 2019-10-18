@@ -1,6 +1,8 @@
 CC = gcc
-CFLAGS = -std=c99
+CFLAGS = -std=c99 -DDEBUG
+# CFLAGS = -std=c99
 LINKER = $(CC)
+LFLAGS = -lm
 
 BINDIR = bin/
 OBJDIR = obj/
@@ -18,7 +20,7 @@ $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 $(BINDIR)driver: $(BINDIR) $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o 
-	$(LINKER) -o $(BINDIR)driver $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o
+	$(LINKER) -o $(BINDIR)driver $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o $(LFLAGS)
 
 $(OBJDIR)driver.o: $(OBJDIR) $(SRCDIR)driver.c
 	$(CC) $(CFLAGS) -o $(OBJDIR)driver.o -c $(SRCDIR)driver.c
