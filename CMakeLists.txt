@@ -11,7 +11,7 @@ project(mpcp2)
 
 #set(SOURCE_FILES util/generator.c src/mpi/knapsack.c src/orig/knapsack.c)
 #set(SOURCE_FILES src/viterbi_sequential.c)
-set(SOURCE_FILES src/viterbi_sequential.c src/driver.c headers/driver.h
+set(SOURCE_FILES src/viterbi_sequential.cu src/driver.cu headers/driver.h
         headers/viterbi_sequential.h)
 #set(SOURCE_FILES src/viterbi_sequential.c util/generator.c headers/driver.h
 #        headers/viterbi_sequential.h)

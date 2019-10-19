@@ -10,6 +10,7 @@
 
 #include "../headers/driver.h"
 #include "../headers/viterbi_sequential.h"
+#include "../headers/viterbi_cuda.h"
 #include <math.h>
 
 
@@ -67,8 +68,8 @@ int main(int argc, char const **argv) {
     int *optimal_path = viterbi_sequential(states, emissions, observation_table,
                                            observations_length,
                                            init_probabilities,
-                                           (const double **) transition_matrix,
-                                           (const double **) emission_table);
+                                           transition_matrix,
+                                           emission_table);
 
 #ifdef DEBUG
     printf("[OPTIMAL PATH]\n");
@@ -77,6 +78,7 @@ int main(int argc, char const **argv) {
     }
     putchar('\n');
 #endif
+    printf("%d\n", viterbi_cuda());
 
 //    free(init_probabilities);
 //    free_2D_memory(transition_matrix, states);
@@ -92,7 +94,7 @@ int main(int argc, char const **argv) {
  */
 double *read_init_probabilities(FILE *f, int states) {
     // allocate memory
-    double *init_probs = malloc(states * sizeof *init_probs);
+    double *init_probs = (double *) malloc(states * sizeof(double));
     assert(init_probs);
 
     // read in values
@@ -112,7 +114,7 @@ double *read_init_probabilities(FILE *f, int states) {
  */
 int *read_observation(FILE *f, int observations) {
     // allocate memory
-    int *observations_table = malloc(observations * sizeof *observations_table);
+    int *observations_table = (int *) malloc(observations * sizeof(int));
     assert(observations_table);
 
     // read in values
@@ -132,10 +134,10 @@ int *read_observation(FILE *f, int observations) {
  */
 double **read_transition_matrix(FILE *f, int states) {
     // allocate memory
-    double **transition_matrix = malloc(states * sizeof *transition_matrix);
+    double **transition_matrix = (double **) malloc(states * sizeof(double *));
     assert(transition_matrix);
     for (int i = 0; i < states; i++) {
-        transition_matrix[i] = malloc(states * sizeof *transition_matrix[i]);
+        transition_matrix[i] = (double *) malloc(states * sizeof(double));
         assert(transition_matrix[i]);
     }
 
@@ -158,10 +160,10 @@ double **read_transition_matrix(FILE *f, int states) {
  */
 double **read_emission_table(FILE *f, int states, int emissions) {
     // allocate memory
-    double **table = malloc(states * sizeof *table);
+    double **table = (double **) malloc(states * sizeof(double *));
     assert(table);
     for (int i = 0; i < states; i++) {
-        table[i] = malloc(emissions * sizeof *table[i]);
+        table[i] = (double *) malloc(emissions * sizeof(double));
         assert(table[i]);
     }
 

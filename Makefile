@@ -1,37 +1,31 @@
-CC = gcc
-CFLAGS = -std=c99 -DDEBUG
-# CFLAGS = -std=c99
-LINKER = $(CC)
-LFLAGS = -lm
+CUDA_INSTALL_PATH := /usr/local/cuda
 
-BINDIR = bin/
-OBJDIR = obj/
-SRCDIR = src/
-UTILDIR = util/
+CXX := g++
+CC := gcc
+LINK := g++ -fPIC
+NVCC  := nvcc
 
-.PHONY: all util
-all: $(BINDIR)driver util
-util: $(BINDIR)generator
+# Includes
+INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include
 
-$(BINDIR):
-	mkdir -p $(BINDIR)
+# Common flags
+COMMONFLAGS += $(INCLUDES)
+NVCCFLAGS += $(COMMONFLAGS)
+CXXFLAGS += $(COMMONFLAGS)
+CFLAGS += $(COMMONFLAGS)
 
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
+LIB_CUDA := -L$(CUDA_INSTALL_PATH)/lib -lcudart
+OBJS = viterbi_sequential.cu.o driver.cu.o
+TARGET = driver
+LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA)
 
-$(BINDIR)driver: $(BINDIR) $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o 
-	$(LINKER) -o $(BINDIR)driver $(OBJDIR)driver.o $(OBJDIR)viterbi_sequential.o $(LFLAGS)
+.SUFFIXES: .c .cpp .cu .o
 
-$(OBJDIR)driver.o: $(OBJDIR) $(SRCDIR)driver.c
-	$(CC) $(CFLAGS) -o $(OBJDIR)driver.o -c $(SRCDIR)driver.c
-
-$(OBJDIR)viterbi_sequential.o: $(OBJDIR) $(SRCDIR)viterbi_sequential.c
-	$(CC) $(CFLAGS) -o $(OBJDIR)viterbi_sequential.o -c $(SRCDIR)viterbi_sequential.c
-
-$(BINDIR)generator: $(BINDIR) $(UTILDIR)generator.c
-	$(CC) $(CFLAGS) -o $(BINDIR)generator $(UTILDIR)generator.c
-
-.PHONY: clean
-clean:
-	rm -rf $(OBJDIR) $(BINDIR)
-
+%.c.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+%.cu.o: %.cu
+	$(NVCC) $(NVCCFLAGS) -c $< -o $@
+%.cpp.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(TARGET): $(OBJS) Makefile
+	$(LINKLINE)

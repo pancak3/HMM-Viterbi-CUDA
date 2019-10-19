@@ -7,8 +7,8 @@
 #include "../headers/driver.h"
 
 int *viterbi_sequential(int n_states, int n_observations,
-                        int const *observations,
+                        const int *observations,
                         int observations_length,
-                        double const *init_probabilities,
-                        double const **transition_matrix,
-                        double const **emission_table);
+                        const double *init_probabilities,
+                        double **transition_matrix,
+                        double **emission_table);

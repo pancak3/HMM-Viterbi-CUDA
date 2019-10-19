@@ -1,30 +1,30 @@
 #include <math.h>
 #include "../headers/viterbi_sequential.h"
 
-double max(double const *vals, int const n, int *imax);
+double max(double const *vals, int n, int *idx_max);
 
-int *viterbi_sequential(int const n_states, int const n_observations,
-                        int const *observations,
-                        int const observations_length,
-                        double const *init_probabilities,
-                        double const **transition_matrix,
-                        double const **emission_table) {
+int *viterbi_sequential(int n_states, int n_observations,
+                        const int *observations,
+                        int observations_length,
+                        const double *init_probabilities,
+                        double **transition_matrix,
+                        double **emission_table) {
     // allocate memory to store probabilities and back-paths
-    double **probs = malloc(observations_length * sizeof *probs);
-    int **backpaths = malloc(observations_length * sizeof *backpaths);
+    double **probs = (double **) malloc(observations_length * sizeof(double *));
+    int **backpaths = (int **) malloc(observations_length * sizeof(int *));
     assert(probs && backpaths);
     for (int i = 0; i < observations_length; i++) {
-        probs[i] = calloc(n_states, sizeof *probs[i]);
-        backpaths[i] = calloc(n_states, sizeof *backpaths[i]);
+        probs[i] = (double *) malloc(n_states * sizeof(double));
+        backpaths[i] = (int *) malloc(n_states * sizeof(int));
         assert(probs[i] && backpaths[i]);
     }
 
     // buffer to store temporary values
-    double *temp = malloc(n_states * sizeof *temp);
+    double *temp = (double *) malloc(n_states * sizeof(double));
     assert(temp);
 
     // allocate memory to store final path
-    int *optimal_path = malloc(observations_length * sizeof *optimal_path);
+    int *optimal_path = (int *) malloc(observations_length * sizeof(int));
     assert(optimal_path);
 
     // calculate state probabilities for initial observation
@@ -77,7 +77,7 @@ int *viterbi_sequential(int const n_states, int const n_observations,
     return optimal_path;
 }
 
-double max(double const *vals, int const n, int *idx_max) {
+double max(double const *vals, int n, int *idx_max) {
     double max = log(0);
     for (int i = 0; i < n; i++)
         if (vals[i] > max) {

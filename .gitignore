@@ -1,6 +1,6 @@
 .idea/
-cmake-build-debug/
-
+*build*/
+CMakeFiles/
 
 generator
 input
