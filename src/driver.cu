@@ -11,8 +11,6 @@
 #include "../headers/driver.h"
 #include "../headers/viterbi_sequential.h"
 #include "../headers/viterbi_cuda.h"
-#include <math.h>
-
 
 int main(int argc, char const **argv) {
     // read in the number of possible hidden states and emissions
@@ -78,11 +76,18 @@ int main(int argc, char const **argv) {
     }
     putchar('\n');
 #endif
-    printf("%d\n", viterbi_cuda());
 
-//    free(init_probabilities);
-//    free_2D_memory(transition_matrix, states);
-//    free_2D_memory(emission_table, states);
+    viterbi_cuda(states, emissions, observation_table,
+                 observations_length,
+                 init_probabilities,
+                 transition_matrix,
+                 emission_table);
+
+    free(init_probabilities);
+    free_2D_memory(transition_matrix, states);
+    free_2D_memory(emission_table, states);
+
+    return 0;
 }
 
 /**
