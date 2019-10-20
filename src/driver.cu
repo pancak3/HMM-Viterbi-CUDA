@@ -70,19 +70,24 @@ int main(int argc, char const **argv) {
                                            emission_table);
 
 #ifdef DEBUG
-    printf("[OPTIMAL PATH]\n");
+    printf("[ SEQUENTIAL OPTIMAL PATH]\n");
     for (int i = 0; i < observations_length; i++) {
         printf("%d ", optimal_path[i]);
     }
     putchar('\n');
 #endif
-
-    viterbi_cuda(states, emissions, observation_table,
+    optimal_path=viterbi_cuda(states, emissions, observation_table,
                  observations_length,
                  init_probabilities,
                  transition_matrix,
                  emission_table);
-
+#ifdef DEBUG
+    printf("[ CUDA OPTIMAL PATH]\n");
+    for (int i = 0; i < observations_length; i++) {
+        printf("%d ", optimal_path[i]);
+    }
+    putchar('\n');
+#endif
     free(init_probabilities);
     free_2D_memory(transition_matrix, states);
     free_2D_memory(emission_table, states);
