@@ -2,11 +2,11 @@
 #include <assert.h>
 #include <float.h>
 
-__global__ void max_probability(int n_states, int n_observations,
+__global__ void max_probability(int *n_states, int *n_observations,
                                 double *transition_matrix,
                                 double *emission_table,
-                                double *prev_probs, double *curr_probs,
-                                int *backpaths);
+                                double *prev_probs, int *observation,
+                                double *curr_probs, int *backpaths);
 
 __device__ void max(double const *vals, int n, double *max, int *idx_max);
 
@@ -20,7 +20,7 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
                                     sizeof *backpaths);
     int *optimal_path = (int *) malloc(observations_length *
                                        sizeof *optimal_path);
-    assert(backpaths && prev_probs && curr_probs && optimal_path);
+    assert(backpaths && optimal_path);
 #ifdef DEBUG
     printf("[HOST BUFFERS ALLOCATED] backpaths, optimal path\n");
 #endif // DEBUG
@@ -83,9 +83,9 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
     for (int i = 1; i < observations_length; i++) {
         cudaMemcpy(dev_obs, observations + i, sizeof *dev_obs,
                    cudaMemcpyHostToDevice);
-        max_probability<<<n_states, 32>>>(n_states, n_observations, dev_trans,
+        max_probability<<<n_states, 32>>>(dev_n_states, dev_n_obs, dev_trans,
                                           dev_emission, dev_prev, dev_obs,
-                                          curr_probs, dev_backpaths);
+                                          dev_curr, dev_backpaths);
         cudaMemcpy(backpaths + i * n_states, dev_backpaths,
                    n_states * sizeof *backpaths, cudaMemcpyDeviceToHost);
         // swap pointers to treat curr probs as prev for next iteration
@@ -105,7 +105,7 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
 
     // follow backpaths to determine all states
     for (int i = n_states - 1; i > 0; i--)
-        optimal_path[i - 1] = backpaths[i][optimal_path[i]];
+        optimal_path[i - 1] = backpaths[i * n_states + optimal_path[i]];
 
 #ifdef DEBUG
     printf(" === BACKPATHS ===\n");
@@ -136,7 +136,7 @@ __global__ void max_probability(int *n_states, int *n_observations,
     int const tidx = threadIdx.x;
 
     if (tidx == 0) {
-        double p_max = -DBL_MAX, p_temp;
+        double p_max = -DBL_MAX, i_max = -1, p_temp;
 
         for (int i = 0; i < *n_states; i++) {
             p_temp = prev_probs[i] + transition_matrix[i * *n_states + bidx] +
