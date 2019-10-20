@@ -35,6 +35,11 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
     printf("[DEVICE BUFFERS ALLOCATED] dev_prev, dev_curr, dev_backpaths\n");
 #endif // DEBUG
 
+    // allocate buffer on device to store observation for each iteration
+    int *dev_obs = NULL;
+    cudaMalloc(&dev_obs, sizeof *dev_obs);
+    assert(dev_obs);
+
     // allocate buffers on device for HMM params and copy from host
     int *dev_n_states, *dev_n_obs;
     cudaMalloc(&dev_n_states, sizeof *dev_n_states);
@@ -76,9 +81,11 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
 
     // calculate state probabilities for subsequent observations (parallel)
     for (int i = 1; i < observations_length; i++) {
+        cudaMemcpy(dev_obs, observations + i, sizeof *dev_obs,
+                   cudaMemcpyHostToDevice);
         max_probability<<<n_states, 32>>>(n_states, n_observations, dev_trans,
-                                          dev_emission, dev_prev, curr_probs,
-                                          dev_backpaths);
+                                          dev_emission, dev_prev, dev_obs,
+                                          curr_probs, dev_backpaths);
         cudaMemcpy(backpaths + i * n_states, dev_backpaths,
                    n_states * sizeof *backpaths, cudaMemcpyDeviceToHost);
         // swap pointers to treat curr probs as prev for next iteration
@@ -120,55 +127,28 @@ __host__ int *viterbi_cuda(int n_states, int n_observations,
     return optimal_path;
 }
 
-__global__ void max_probability(int n_states, int n_observations,
+__global__ void max_probability(int *n_states, int *n_observations,
                                 double *transition_matrix,
                                 double *emission_table,
-                                double *prev_probs, double *curr_probs,
-                                int *backpaths) {
+                                double *prev_probs, int *observation,
+                                double *curr_probs, int *backpaths) {
     int const bidx = blockIdx.x;
     int const tidx = threadIdx.x;
 
-    double p_max = -DBL_MAX;
-    double p_temp;
-    int idx = -1;
-    if (1) {
-//    if (tidx == 0) {
-        for (int i = 0; i < n_states; i++) {
-            p_temp = prev_probs[i] + transition_matrix[bidx * n_states + i] +
-                     emission_table[bidx * n_observations + i];
+    if (tidx == 0) {
+        double p_max = -DBL_MAX, p_temp;
+
+        for (int i = 0; i < *n_states; i++) {
+            p_temp = prev_probs[i] + transition_matrix[i * *n_states + bidx] +
+                     emission_table[bidx * *n_observations + *observation];
             if (p_temp > p_max) {
                 p_max = p_temp;
-                idx = i;
+                i_max = i;
             }
         }
         curr_probs[bidx] = p_max;
-        backpaths[bidx] = idx;
-        backpaths[1] = 999;
+        backpaths[bidx] = i_max;
     }
-    backpaths[1] = 999;
-    __syncthreads();
-
-
-
-
-//    __shared__ int n_s;
-//    __shared__ int n_obs;
-//    extern __shared__ double pre[];
-//    extern __shared__ double t_matrix[];
-//    extern __shared__ double e_table[];
-//
-//    if (tidx == 0) {
-//        n_s = n_states;
-//        n_obs = n_observations;
-//        for (int i = 0; i < n_s; i++) {
-//            pre[i] = prev_probs[i];
-//            for (int j = 0; j < n_s; j++)
-//                t_matrix[i * n_s + j] = transition_matrix[i][j];
-//            for (int j = 0; j < n_obs; j++)
-//                e_table[i * n_obs + j] = emission_table[i][j];
-//        }
-//    }
-//    __syncthreads();
 }
 
 __device__ void max(double const *vals, int n, double *max, int *idx_max) {
