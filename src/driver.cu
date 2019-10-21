@@ -91,7 +91,6 @@ int main(int argc, char const **argv) {
     free(init_probabilities);
     free_2D_memory(transition_matrix, states);
     free_2D_memory(emission_table, states);
-    printf("Segmentation never fail!\n");
     return 0;
 }
 

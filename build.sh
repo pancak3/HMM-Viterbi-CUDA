@@ -8,6 +8,7 @@ GENERATOR=generator.c
 
 echo -e "[*] use nvcc to compile \n\t{$DRIVER, $VITERBI_CUDA,$VITERBI_SEQUENTIAL}\n\t... \c"
 nvcc -rdc=true \
+  -arch=sm_60 \
   $SRC/$DRIVER \
   $SRC/$VITERBI_SEQUENTIAL \
   $SRC/$VITERBI_CUDA \

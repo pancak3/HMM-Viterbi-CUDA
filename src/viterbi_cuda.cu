@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <float.h>
 
+#define THREADS_PER_BLOCK 32
+
 __global__ void max_probability(int *n_states,
                                 int *n_possible_observations,
                                 double *transition_matrix,
@@ -21,7 +23,7 @@ __host__ int *viterbi_cuda(int n_states,
                            double **transition_matrix,
                            double **emission_table) {
     // allocate buffers on host to store backpaths and most likely path
-    int *backpaths = (int *) calloc(n_actual_observations * n_states,
+    int *backpaths = (int *) calloc(n_actual_observations * (n_states + 1),
                                     sizeof *backpaths);
     int *optimal_path = (int *) malloc(n_actual_observations *
                                        sizeof *optimal_path);
@@ -32,7 +34,7 @@ __host__ int *viterbi_cuda(int n_states,
     int *dev_backpaths = NULL;
     cudaMalloc(&dev_prev_probs, n_states * sizeof *dev_prev_probs);
     cudaMalloc(&dev_curr_probs, n_states * sizeof *dev_curr_probs);
-    cudaMalloc(&dev_backpaths, n_states * sizeof *dev_backpaths);
+    cudaMalloc(&dev_backpaths, (n_states + 1) * sizeof *dev_backpaths);
     assert(dev_prev_probs && dev_curr_probs && dev_backpaths);
 
     // allocate buffer on device to store observation for each iteration
@@ -94,10 +96,12 @@ __host__ int *viterbi_cuda(int n_states,
     // calculate state probabilities for subsequent observations (parallel)
     int *dev_current_state;
     cudaMalloc(&dev_current_state, sizeof *dev_current_state);
+    int *paths_last = (int *) malloc(n_actual_observations * sizeof(int));
+
     for (int i = 1; i < n_actual_observations; i++) {
         cudaMemcpy(dev_current_state, actual_observations + i,
                    sizeof *dev_current_state, cudaMemcpyHostToDevice);
-        max_probability << < n_states, 32 >> > (dev_n_states,
+        max_probability << < n_states, THREADS_PER_BLOCK >> > (dev_n_states,
                 dev_n_possible_obs,
                 dev_trans,
                 dev_emission,
@@ -107,12 +111,24 @@ __host__ int *viterbi_cuda(int n_states,
                 dev_backpaths);
         cudaMemcpy(backpaths + i * n_actual_observations,
                    dev_backpaths,
-                   n_states * sizeof *backpaths,
+                   (n_states + 1) * sizeof *backpaths,
                    cudaMemcpyDeviceToHost);
+//        memcpy(backpaths + i * n_actual_observations, paths_last,
+//               n_states * sizeof *paths_last);
+#ifdef DEBUG
+        printf("T%d: ", i-1);
+        for (int j = 0; j < n_states; ++j) {
+            printf("%d ", backpaths[(i-1) * n_actual_observations + j]);
+        }
+        putchar('\n');
+        printf("T%d: ", i);
         for (int j = 0; j < n_states; ++j) {
             printf("%d ", backpaths[i * n_actual_observations + j]);
         }
         putchar('\n');
+
+        paths_last[i] = backpaths[i * n_actual_observations + n_states - 1];
+#endif
         // swap probs;
 #ifndef DEBUG
         temp = dev_prev_probs;
@@ -127,21 +143,9 @@ __host__ int *viterbi_cuda(int n_states,
         memcpy(prob_matrix[i], temp, n_states * sizeof *temp);
 #endif
     }
-#ifdef DEBUG
-    printf("[ CUDA BACKPATHS TABLE ]\n");
-    printf("    ");
-    for ( int i=0;i<n_actual_observations;i++){
-        printf("T%d ",i);
+    for (int j = 0; j < n_actual_observations; ++j) {
+        backpaths[j * n_states + n_states - 1] = paths_last[j];
     }
-    printf("\n");
-    for (int i = 0; i < n_states; i++) {
-        printf("S%d: ",i);
-        for (int j = 0; j < n_actual_observations; j++) {
-            printf("%2d ", backpaths[j * n_actual_observations + i]);
-        }
-        putchar('\n');
-    }
-#endif
 
 #ifdef DEBUG
     printf("[CUDA PROBS TABLE]\n");
@@ -197,9 +201,15 @@ __host__ int *viterbi_cuda(int n_states,
         putchar('\n');
     }
 #endif
-
+#ifdef DEBUG
+    printf("[ PATHS REAR ]\n");
+    for ( int i=0;i<n_actual_observations;i++){
+        printf("%d ",paths_last[i]);
+    }
+    printf("\n");
+#endif
     free(temp);
-    free(backpaths);
+//    free(backpaths);
     cudaFree(dev_prev_probs);
     cudaFree(dev_curr_probs);
     cudaFree(dev_backpaths);
@@ -223,22 +233,39 @@ __global__ void max_probability(int *n_states,
     int const bidx = blockIdx.x;
     int const tidx = threadIdx.x;
 
-    if (tidx == 0) {
-        double p_max = -DBL_MAX, p_temp;
-        int i_max = -1;
+    __shared__ double max_probs[THREADS_PER_BLOCK];
+    __shared__ double max_indices[THREADS_PER_BLOCK];
 
-        for (int i = 0; i < *n_states; i++) {
-            p_temp = prev_probs[i] +
-                     transition_matrix[i * *n_states + bidx] +
-                     emission_matrix[bidx * *n_possible_observations +
-                                     *current_state];
-            if (p_temp > p_max) {
-                p_max = p_temp;
-                i_max = i;
+    int chunk_size = ceil(__int2double_rn(*n_states) / blockDim.x);
+    int offset = tidx * chunk_size, i_max = 0;
+    double p_max = -DBL_MAX, p_temp;
+
+    for (int i = offset; i < *n_states && i < offset + chunk_size; i++) {
+        p_temp = prev_probs[i] +
+                 transition_matrix[i * *n_states + bidx] +
+                 emission_matrix[bidx * *n_possible_observations +
+                                 *current_state];
+        if (p_temp > p_max) {
+            p_max = p_temp;
+            i_max = i;
+        }
+    }
+
+    max_probs[tidx] = p_max;
+    max_indices[tidx] = i_max;
+    __syncthreads();
+
+    if (tidx == 0) {
+        p_max = -DBL_MAX;
+        for (int i = 0; i < blockDim.x && i < *n_states; i++) {
+            if (max_probs[i] > p_max) {
+                p_max = max_probs[i];
+                i_max = max_indices[i];
             }
         }
         curr_probs[bidx] = p_max;
         backpaths[bidx] = i_max;
+        cudaDeviceSynchronize();
     }
 }
 
