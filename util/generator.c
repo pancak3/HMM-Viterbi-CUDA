@@ -60,10 +60,10 @@ int main() {
 
     // start prob
     current_prob = prob_sum - states * MIN_PROB;
-    for (int i = 0; i < states; i++) {
+    for (int i = 0; i < states-1; i++) {
         printf("%.4f ", rand_prob(&current_prob));
     }
-    putchar('\n');
+    printf("%.4f\n", current_prob + MIN_PROB);
 
     // transition_prob
     for (i = 0; i < states; i++) {
@@ -88,5 +88,6 @@ int main() {
     for (i = 0; i < observation_length; i++) {
         printf("%d\n", my_rand(0, observations - 1));
     }
+    putchar('\n');
     return 0;
 }

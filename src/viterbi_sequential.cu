@@ -55,22 +55,6 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
     // follow back-paths to get most likely sequence
     for (int i = n_actual_observations - 1; i > 0; i--)
         optimal_path[i - 1] = backpaths[i][optimal_path[i]];
-#ifdef DEBUG
-    printf("[ SEQUENTIAL BACKPATHS TABLE ]\n");
-    printf("    ");
-    for ( int i=0;i<n_actual_observations;i++){
-        printf("T%d ",i);
-    }
-    printf("\n");
-
-    for (int i=0;i<n_states;i++){
-        printf("S%d: ",i);
-        for (int j=0; j< n_actual_observations; j++ ){
-            printf("%2d ",backpaths[j][i]);
-        }
-        printf("\n");
-    }
-#endif
 
 #ifdef DEBUG
     printf("[ SEQUENTIAL PROBS TABLE ]\n");
@@ -93,6 +77,23 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
         putchar('\n');
     }
 #endif // DEBUG
+
+#ifdef DEBUG
+    printf("[ SEQUENTIAL BACKPATHS TABLE ]\n");
+    printf("    ");
+    for ( int i=0;i<n_actual_observations;i++){
+        printf("T%d ",i);
+    }
+    printf("\n");
+
+    for (int i=0;i<n_states;i++){
+        printf("S%d: ",i);
+        for (int j=0; j< n_actual_observations; j++ ){
+            printf("%2d ",backpaths[j][i]);
+        }
+        printf("\n");
+    }
+#endif
 
     // free memory no longer required
     for (int i = 0; i < n_actual_observations; i++) {

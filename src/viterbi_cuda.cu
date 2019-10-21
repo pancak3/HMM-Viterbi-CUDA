@@ -26,9 +26,6 @@ __host__ int *viterbi_cuda(int n_states,
     int *optimal_path = (int *) malloc(n_actual_observations *
                                        sizeof *optimal_path);
     assert(backpaths && optimal_path);
-#ifdef DEBUG
-    printf("[HOST BUFFERS ALLOCATED] backpaths, optimal path\n");
-#endif // DEBUG
 
     // allocate buffers on device for prev/curr state probs and curr backpaths
     double *dev_prev_probs = NULL, *dev_curr_probs = NULL;
@@ -37,9 +34,6 @@ __host__ int *viterbi_cuda(int n_states,
     cudaMalloc(&dev_curr_probs, n_states * sizeof *dev_curr_probs);
     cudaMalloc(&dev_backpaths, n_states * sizeof *dev_backpaths);
     assert(dev_prev_probs && dev_curr_probs && dev_backpaths);
-#ifdef DEBUG
-    printf("[DEVICE BUFFERS ALLOCATED] dev_prev_probs, dev_curr_probs, dev_backpaths\n");
-#endif // DEBUG
 
     // allocate buffer on device to store observation for each iteration
     int *dev_actual_obs = NULL;
@@ -49,9 +43,7 @@ __host__ int *viterbi_cuda(int n_states,
                &actual_observations,
                n_actual_observations * sizeof dev_actual_obs,
                cudaMemcpyHostToDevice);
-#ifdef DEBUG
-    printf("[ACTUAL OBSERVATIONS COPIED TO DEVICE MEMORY]\n");
-#endif
+
     // allocate buffers on device for HMM params and copy from host
     int *dev_n_states, *dev_n_possible_obs;
     cudaMalloc(&dev_n_states, sizeof *dev_n_states);
@@ -62,17 +54,13 @@ __host__ int *viterbi_cuda(int n_states,
                &n_possible_observations,
                sizeof n_possible_observations,
                cudaMemcpyHostToDevice);
-#ifdef DEBUG
-    printf("[N_STATES AND N_OBSERVATIONS COPIED TO DEVICE MEMORY]\n");
-#endif
+
     double *dev_trans;
     cudaMalloc(&dev_trans, n_states * n_states * sizeof *dev_trans);
     for (int i = 0; i < n_states; i++)
         cudaMemcpy(dev_trans + i * n_states, transition_matrix[i],
                    n_states * sizeof *dev_trans, cudaMemcpyHostToDevice);
-#ifdef DEBUG
-    printf("[TRANSITION MATRIX COPIED TO DEVICE MEMORY]\n");
-#endif
+
     double *dev_emission;
     cudaMalloc(&dev_emission,
                n_states * n_possible_observations * sizeof *dev_emission);
@@ -81,9 +69,6 @@ __host__ int *viterbi_cuda(int n_states,
                    emission_table[i],
                    n_possible_observations * sizeof *dev_emission,
                    cudaMemcpyHostToDevice);
-#ifdef DEBUG
-    printf("[EMISSION TABLE COPIED TO DEVICE MEMORY]\n");
-#endif
 
     // calculate initial state probabilities and copy to device memory
     double *temp = (double *) malloc(n_states * sizeof *temp);
@@ -92,11 +77,7 @@ __host__ int *viterbi_cuda(int n_states,
         temp[i] = init_probabilities[i] +
                   emission_table[i][actual_observations[0]];
     cudaMemcpy(dev_prev_probs, temp, n_states * sizeof *temp,
-            cudaMemcpyHostToDevice);
-#ifdef DEBUG
-    printf("[INIT STATE PROBS COPIED TO DEVICE MEMORY]\n");
-
-#endif
+               cudaMemcpyHostToDevice);
 #ifdef DEBUG
     double **prob_matrix = (double **) malloc(
             n_actual_observations * sizeof(double *));
@@ -115,33 +96,52 @@ __host__ int *viterbi_cuda(int n_states,
     cudaMalloc(&dev_current_state, sizeof *dev_current_state);
     for (int i = 1; i < n_actual_observations; i++) {
         cudaMemcpy(dev_current_state, actual_observations + i,
-                sizeof *dev_current_state,cudaMemcpyHostToDevice);
-        max_probability << < n_states, 32 >> >(dev_n_states,
-                                               dev_n_possible_obs,
-                                               dev_trans,
-                                               dev_emission,
-                                               dev_prev_probs,
-                                               dev_current_state,
-                                               dev_curr_probs,
-                                               dev_backpaths);
+                   sizeof *dev_current_state, cudaMemcpyHostToDevice);
+        max_probability << < n_states, 32 >> > (dev_n_states,
+                dev_n_possible_obs,
+                dev_trans,
+                dev_emission,
+                dev_prev_probs,
+                dev_current_state,
+                dev_curr_probs,
+                dev_backpaths);
         cudaMemcpy(backpaths + i * n_actual_observations,
                    dev_backpaths,
                    n_states * sizeof *backpaths,
                    cudaMemcpyDeviceToHost);
+        for (int j = 0; j < n_states; ++j) {
+            printf("%d ", backpaths[i * n_actual_observations + j]);
+        }
+        putchar('\n');
         // swap probs;
 #ifndef DEBUG
+        temp = dev_prev_probs;
         dev_prev_probs = dev_curr_probs;
+        dev_curr_probs = temp;
 #endif
 #ifdef DEBUG
         cudaMemcpy(temp, dev_curr_probs, n_states * sizeof *temp,
                 cudaMemcpyDeviceToHost);
         cudaMemcpy(dev_prev_probs, temp, n_states * sizeof *temp,
                 cudaMemcpyHostToDevice);
-        for (int j = 0; j < n_states; j++) {
-            prob_matrix[i][j] = temp[j];
-        }
+        memcpy(prob_matrix[i], temp, n_states * sizeof *temp);
 #endif
     }
+#ifdef DEBUG
+    printf("[ CUDA BACKPATHS TABLE ]\n");
+    printf("    ");
+    for ( int i=0;i<n_actual_observations;i++){
+        printf("T%d ",i);
+    }
+    printf("\n");
+    for (int i = 0; i < n_states; i++) {
+        printf("S%d: ",i);
+        for (int j = 0; j < n_actual_observations; j++) {
+            printf("%2d ", backpaths[j * n_actual_observations + i]);
+        }
+        putchar('\n');
+    }
+#endif
 
 #ifdef DEBUG
     printf("[CUDA PROBS TABLE]\n");
@@ -167,7 +167,7 @@ __host__ int *viterbi_cuda(int n_states,
     // determine highest final state probability
 #ifndef DEBUG
     cudaMemcpy(temp, dev_prev_probs, n_states * sizeof *temp,
-            cudaMemcpyDeviceToHost);
+               cudaMemcpyDeviceToHost);
 #endif
     double max_prob = -DBL_MAX;
     for (int i = 0; i < n_states; i++) {
@@ -203,8 +203,12 @@ __host__ int *viterbi_cuda(int n_states,
     cudaFree(dev_prev_probs);
     cudaFree(dev_curr_probs);
     cudaFree(dev_backpaths);
+    cudaFree(dev_actual_obs);
+    cudaFree(dev_n_states);
+    cudaFree(dev_n_possible_obs);
     cudaFree(dev_trans);
     cudaFree(dev_emission);
+    cudaFree(dev_current_state);
     return optimal_path;
 }
 
@@ -221,7 +225,7 @@ __global__ void max_probability(int *n_states,
 
     if (tidx == 0) {
         double p_max = -DBL_MAX, p_temp;
-        int i_max = 0;
+        int i_max = -1;
 
         for (int i = 0; i < *n_states; i++) {
             p_temp = prev_probs[i] +

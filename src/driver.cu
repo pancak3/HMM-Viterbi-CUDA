@@ -63,35 +63,35 @@ int main(int argc, char const **argv) {
     printf("\n");
 #endif // DEBUG
 
-    int *optimal_path = viterbi_sequential(states, emissions, observation_table,
-                                           observations_length,
-                                           init_probabilities,
-                                           transition_matrix,
-                                           emission_table);
+    int *optimal_path_sequential = viterbi_sequential(states, emissions,
+                                                      observation_table,
+                                                      observations_length,
+                                                      init_probabilities,
+                                                      transition_matrix,
+                                                      emission_table);
 
+    int *optimal_path_cuda = viterbi_cuda(states, emissions, observation_table,
+                                          observations_length,
+                                          init_probabilities,
+                                          transition_matrix,
+                                          emission_table);
 #ifdef DEBUG
-    printf("[ SEQUENTIAL OPTIMAL PATH]\n");
+    printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
     for (int i = 0; i < observations_length; i++) {
-        printf("%d ", optimal_path[i]);
+        printf("%3d ", optimal_path_sequential[i]);
     }
     putchar('\n');
-#endif
-    optimal_path=viterbi_cuda(states, emissions, observation_table,
-                 observations_length,
-                 init_probabilities,
-                 transition_matrix,
-                 emission_table);
-#ifdef DEBUG
-    printf("[ CUDA OPTIMAL PATH]\n");
+
+    printf("[ CUDA OPTIMAL PATH ]\n");
     for (int i = 0; i < observations_length; i++) {
-        printf("%d ", optimal_path[i]);
+        printf("%3d ", optimal_path_cuda[i]);
     }
     putchar('\n');
 #endif
     free(init_probabilities);
     free_2D_memory(transition_matrix, states);
     free_2D_memory(emission_table, states);
-
+    printf("Segmentation never fail!\n");
     return 0;
 }
 
