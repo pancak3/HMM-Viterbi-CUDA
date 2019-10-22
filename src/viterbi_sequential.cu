@@ -8,7 +8,8 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
                         int n_actual_observations,
                         const double *start_probabilities,
                         double **transition_matrix,
-                        double **emission_matrix) {
+                        double **emission_matrix,
+                        double ***probs_out) {
     // allocate memory to store probabilities and back-paths
     double **prob_matrix = (double **) malloc(
             n_actual_observations * sizeof(double *));
@@ -36,6 +37,7 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
 
     // calculate state probabilities for subsequent actual_observations
     for (int i = 1; i < n_actual_observations; i++) {
+//        printf("T%d\n", i);
         // calculate max probability of current observation for each state
         for (int j = 0; j < n_states; j++) {
             // calculate the probability for all possibilities of prev. state
@@ -96,14 +98,15 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
 #endif
 
     // free memory no longer required
-    for (int i = 0; i < n_actual_observations; i++) {
-        free(prob_matrix[i]);
-        free(backpaths[i]);
-    }
-    free(prob_matrix);
+//    for (int i = 0; i < n_actual_observations; i++) {
+//        free(prob_matrix[i]);
+//        free(backpaths[i]);
+//    }
+    *probs_out = prob_matrix;
+
+//    free(prob_matrix);
     free(backpaths);
     free(temp);
-
     return optimal_path;
 }
 

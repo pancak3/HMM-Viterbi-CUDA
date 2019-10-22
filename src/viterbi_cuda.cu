@@ -21,7 +21,8 @@ __host__ int *viterbi_cuda(int n_states,
                            int n_actual_observations,
                            double const *init_probabilities,
                            double **transition_matrix,
-                           double **emission_table) {
+                           double **emission_table,
+                           double ***probs_out) {
     // allocate buffers on host to store backpaths and most likely path
     int *backpaths = (int *) calloc(n_actual_observations * n_states,
                                     sizeof *backpaths);
@@ -187,6 +188,8 @@ __host__ int *viterbi_cuda(int n_states,
         putchar('\n');
     }
 #endif
+    *probs_out = prob_matrix;
+
     free(temp);
 //    free(backpaths);
     cudaFree(gpu_prev_probs);

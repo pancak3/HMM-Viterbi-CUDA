@@ -11,4 +11,5 @@ int *viterbi_sequential(int n_states, int n_possible_observations,
                         int n_actual_observations,
                         const double *start_probabilities,
                         double **transition_matrix,
-                        double **emission_matrix);
+                        double **emission_matrix,
+                        double ***probs_matrix_sequential);
