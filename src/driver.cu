@@ -41,18 +41,18 @@ int main(int argc, char const **argv) {
            emissions, observations_length);
     printf("[INIT PROBABILITIES]\n");
     for (int i = 0; i < states; i++)
-        printf("%.4lf ", init_probabilities[i]);
+        printf("%.4e ", init_probabilities[i]);
     printf("\n");
     printf("[EMISSION PROBABILITIES]\n");
     for (int i = 0; i < states; i++) {
         for (int j = 0; j < emissions; j++)
-            printf("%.4lf ", emission_table[i][j]);
+            printf("%.4e ", emission_table[i][j]);
         printf("\n");
     }
     printf("[TRANSITION MATRIX]\n");
     for (int i = 0; i < states; i++) {
         for (int j = 0; j < states; j++)
-            printf("%.4lf ", transition_matrix[i][j]);
+            printf("%.4e ", transition_matrix[i][j]);
         printf("\n");
     }
 

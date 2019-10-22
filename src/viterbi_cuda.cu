@@ -30,87 +30,81 @@ __host__ int *viterbi_cuda(int n_states,
     assert(backpaths && optimal_path);
 
     // allocate buffers on device for prev/curr state probs and curr backpaths
-    double *dev_prev_probs = NULL, *dev_curr_probs = NULL;
-    int *dev_backpaths = NULL;
-    cudaMalloc(&dev_prev_probs, n_states * sizeof *dev_prev_probs);
-    cudaMalloc(&dev_curr_probs, n_states * sizeof *dev_curr_probs);
-    cudaMalloc(&dev_backpaths, (n_states + 1) * sizeof *dev_backpaths);
-    assert(dev_prev_probs && dev_curr_probs && dev_backpaths);
+    double *gpu_prev_probs = NULL, *gpu_curr_probs = NULL;
+    int *gpu_backpaths = NULL;
+    cudaMalloc(&gpu_prev_probs, n_states * sizeof *gpu_prev_probs);
+    cudaMalloc(&gpu_curr_probs, n_states * sizeof *gpu_curr_probs);
+    cudaMalloc(&gpu_backpaths, (n_states + 1) * sizeof *gpu_backpaths);
+    assert(gpu_prev_probs && gpu_curr_probs && gpu_backpaths);
 
     // allocate buffer on device to store observation for each iteration
-    int *dev_actual_obs = NULL;
-    cudaMalloc(&dev_actual_obs, sizeof *dev_actual_obs);
-    assert(dev_actual_obs);
-    cudaMemcpy(dev_actual_obs,
+    int *gpu_actual_obs = NULL;
+    cudaMalloc(&gpu_actual_obs, sizeof *gpu_actual_obs);
+    assert(gpu_actual_obs);
+    cudaMemcpy(gpu_actual_obs,
                &actual_observations,
-               n_actual_observations * sizeof dev_actual_obs,
+               n_actual_observations * sizeof gpu_actual_obs,
                cudaMemcpyHostToDevice);
 
     // allocate buffers on device for HMM params and copy from host
-    int *dev_n_states, *dev_n_possible_obs;
-    cudaMalloc(&dev_n_states, sizeof *dev_n_states);
-    cudaMalloc(&dev_n_possible_obs, sizeof *dev_n_possible_obs);
-    cudaMemcpy(dev_n_states, &n_states, sizeof n_states,
+    int *gpu_n_states, *gpu_n_possible_obs;
+    cudaMalloc(&gpu_n_states, sizeof *gpu_n_states);
+    cudaMalloc(&gpu_n_possible_obs, sizeof *gpu_n_possible_obs);
+    cudaMemcpy(gpu_n_states, &n_states, sizeof n_states,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_n_possible_obs,
+    cudaMemcpy(gpu_n_possible_obs,
                &n_possible_observations,
                sizeof n_possible_observations,
                cudaMemcpyHostToDevice);
 
-    double *dev_trans;
-    cudaMalloc(&dev_trans, n_states * n_states * sizeof *dev_trans);
+    double *gpu_trans;
+    cudaMalloc(&gpu_trans, n_states * n_states * sizeof *gpu_trans);
     for (int i = 0; i < n_states; i++)
-        cudaMemcpy(dev_trans + i * n_states, transition_matrix[i],
-                   n_states * sizeof *dev_trans, cudaMemcpyHostToDevice);
+        cudaMemcpy(gpu_trans + i * n_states, transition_matrix[i],
+                   n_states * sizeof *gpu_trans, cudaMemcpyHostToDevice);
 
-    double *dev_emission;
-    cudaMalloc(&dev_emission,
-               n_states * n_possible_observations * sizeof *dev_emission);
+    double *gpu_emission;
+    cudaMalloc(&gpu_emission,
+               n_states * n_possible_observations * sizeof *gpu_emission);
     for (int i = 0; i < n_states; i++)
-        cudaMemcpy(dev_emission + i * n_possible_observations,
+        cudaMemcpy(gpu_emission + i * n_possible_observations,
                    emission_table[i],
-                   n_possible_observations * sizeof *dev_emission,
+                   n_possible_observations * sizeof *gpu_emission,
                    cudaMemcpyHostToDevice);
 
     // calculate initial state probabilities and copy to device memory
-    double *temp = (double *) malloc(n_states * sizeof *temp);
-    assert(temp);
-    for (int i = 0; i < n_states; i++)
-        temp[i] = init_probabilities[i] +
-                  emission_table[i][actual_observations[0]];
-    cudaMemcpy(dev_prev_probs, temp, n_states * sizeof *temp,
-               cudaMemcpyHostToDevice);
-#ifdef DEBUG
     double **prob_matrix = (double **) malloc(
             n_actual_observations * sizeof(double *));
     assert(prob_matrix);
     for (int i = 0; i < n_actual_observations; i++) {
         prob_matrix[i] = (double *) malloc(n_states * sizeof(double));
-        assert(prob_matrix[i] );
+        assert(prob_matrix[i]);
     }
-    for (int i = 0; i < n_states; i++) {
-        prob_matrix[0][i] = temp[i];
-    }
-#endif
+    for (int i = 0; i < n_states; i++)
+        prob_matrix[0][i] = init_probabilities[i] +
+                            emission_table[i][actual_observations[0]];
+
+    cudaMemcpy(gpu_prev_probs, prob_matrix[0], n_states * sizeof prob_matrix[0],
+               cudaMemcpyHostToDevice);
+
 
     // calculate state probabilities for subsequent observations (parallel)
-    int *dev_current_state;
-    cudaMalloc(&dev_current_state, sizeof *dev_current_state);
-    int *paths_last = (int *) malloc(n_actual_observations * sizeof(int));
+    int *gpu_current_state;
+    cudaMalloc(&gpu_current_state, sizeof *gpu_current_state);
 
     for (int i = 1; i < n_actual_observations; i++) {
-        cudaMemcpy(dev_current_state, actual_observations + i,
-                   sizeof *dev_current_state, cudaMemcpyHostToDevice);
-        max_probability << < n_states, THREADS_PER_BLOCK >> > (dev_n_states,
-                dev_n_possible_obs,
-                dev_trans,
-                dev_emission,
-                dev_prev_probs,
-                dev_current_state,
-                dev_curr_probs,
-                dev_backpaths);
+        cudaMemcpy(gpu_current_state, actual_observations + i,
+                   sizeof *gpu_current_state, cudaMemcpyHostToDevice);
+        max_probability << < n_states, THREADS_PER_BLOCK >> > (gpu_n_states,
+                gpu_n_possible_obs,
+                gpu_trans,
+                gpu_emission,
+                gpu_prev_probs,
+                gpu_current_state,
+                gpu_curr_probs,
+                gpu_backpaths);
         cudaMemcpy(backpaths + i * n_actual_observations,
-                   dev_backpaths,
+                   gpu_backpaths,
                    (n_states + 1) * sizeof *backpaths,
                    cudaMemcpyDeviceToHost);
 //        memcpy(backpaths + i * n_actual_observations, paths_last,
@@ -127,24 +121,19 @@ __host__ int *viterbi_cuda(int n_states,
         }
         putchar('\n');
 
-        paths_last[i] = backpaths[i * n_actual_observations + n_states - 1];
 #endif
-        // swap probs;
-#ifndef DEBUG
-        temp = dev_prev_probs;
-        dev_prev_probs = dev_curr_probs;
-        dev_curr_probs = temp;
-#endif
-#ifdef DEBUG
-        cudaMemcpy(temp, dev_curr_probs, n_states * sizeof *temp,
-                cudaMemcpyDeviceToHost);
-        cudaMemcpy(dev_prev_probs, temp, n_states * sizeof *temp,
-                cudaMemcpyHostToDevice);
+
+        double *temp = (double *) malloc(n_states * sizeof *temp);
+        assert(temp);
+        cudaMemcpy(temp, gpu_curr_probs, n_states * sizeof *temp,
+                   cudaMemcpyDeviceToHost);
+        printf("[GPU CURR PROB]\n");
+        for (int j = 0; j < n_states; ++j) {
+            printf("%.4e \n", temp[j]);
+        }
+        cudaMemcpy(gpu_prev_probs, temp, n_states * sizeof *temp,
+                   cudaMemcpyHostToDevice);
         memcpy(prob_matrix[i], temp, n_states * sizeof *temp);
-#endif
-    }
-    for (int j = 0; j < n_actual_observations; ++j) {
-        backpaths[j * n_states + n_states - 1] = paths_last[j];
     }
 
 #ifdef DEBUG
@@ -169,10 +158,10 @@ __host__ int *viterbi_cuda(int n_states,
     }
 #endif
     // determine highest final state probability
-#ifndef DEBUG
-    cudaMemcpy(temp, dev_prev_probs, n_states * sizeof *temp,
+    double *temp = (double *) malloc(n_states * sizeof *temp);
+    assert(temp);
+    cudaMemcpy(temp, gpu_prev_probs, n_states * sizeof *temp,
                cudaMemcpyDeviceToHost);
-#endif
     double max_prob = -DBL_MAX;
     for (int i = 0; i < n_states; i++) {
         if (temp[i] > max_prob) {
@@ -201,24 +190,17 @@ __host__ int *viterbi_cuda(int n_states,
         putchar('\n');
     }
 #endif
-#ifdef DEBUG
-    printf("[ PATHS REAR ]\n");
-    for ( int i=0;i<n_actual_observations;i++){
-        printf("%d ",paths_last[i]);
-    }
-    printf("\n");
-#endif
     free(temp);
 //    free(backpaths);
-    cudaFree(dev_prev_probs);
-    cudaFree(dev_curr_probs);
-    cudaFree(dev_backpaths);
-    cudaFree(dev_actual_obs);
-    cudaFree(dev_n_states);
-    cudaFree(dev_n_possible_obs);
-    cudaFree(dev_trans);
-    cudaFree(dev_emission);
-    cudaFree(dev_current_state);
+    cudaFree(gpu_prev_probs);
+    cudaFree(gpu_curr_probs);
+    cudaFree(gpu_backpaths);
+    cudaFree(gpu_actual_obs);
+    cudaFree(gpu_n_states);
+    cudaFree(gpu_n_possible_obs);
+    cudaFree(gpu_trans);
+    cudaFree(gpu_emission);
+    cudaFree(gpu_current_state);
     return optimal_path;
 }
 
@@ -226,47 +208,85 @@ __global__ void max_probability(int *n_states,
                                 int *n_possible_observations,
                                 double *transition_matrix,
                                 double *emission_matrix,
-                                double *prev_probs,
+                                double *gpu_prev_probs,
                                 int *current_state,
-                                double *curr_probs,
-                                int *backpaths) {
+                                double *gpu_curr_probs,
+                                int *gpu_backpaths) {
+
+    extern __shared__ double shared_bank[];
     int const bidx = blockIdx.x;
     int const tidx = threadIdx.x;
 
-    __shared__ double max_probs[THREADS_PER_BLOCK];
-    __shared__ double max_indices[THREADS_PER_BLOCK];
+    int dev_n_states = *n_states;
+    int dev_n_possible_obs = *n_possible_observations;
+    int dev_curr_state = *current_state;
+    double dev_emi_cell = emission_matrix[bidx * dev_n_possible_obs +
+                                          dev_curr_state];
+
+    double *dev_tran_matrix = shared_bank;
+    double *dev_prev_probs = dev_tran_matrix + *n_states;
+    double *dev_curr_probs = dev_prev_probs + *n_states;
+
+    double *dev_max_probs = dev_curr_probs + *n_states;
+    int *dev_max_indices = (int *) dev_max_probs + *n_states;
+
+    if (tidx == 0) {
+
+//        printf("dev_n_states: %d\n", dev_n_states);
+//        printf("dev_n_possible_obs: %d\n", dev_n_possible_obs);
+//        printf("dev_curr_state: %d\n", dev_curr_state);
+//        printf("dev_emi_cell: %.4e\n", dev_emi_cell);
+//        cudaDeviceSynchronize();
+
+
+        for (int j = 0; j < dev_n_states; ++j) {
+            dev_tran_matrix[j] = transition_matrix[j * dev_n_states + bidx];
+//            printf("bidx:%d; dev_tran_matrix[%d]: %.4e\n", bidx, j,
+//                   dev_tran_matrix[j]);
+            dev_prev_probs[j] = gpu_prev_probs[j];
+        }
+//        for (int j = 0; j < dev_n_states; ++j) {
+//            printf("bidx:%d; dev_prev_probs[%d]: %.4e\n", bidx, j,
+//                   dev_prev_probs[j]);
+//        }
+
+        cudaDeviceSynchronize();
+
+
+    }
+    __syncthreads();
 
     int chunk_size = ceil(__int2double_rn(*n_states) / blockDim.x);
     int offset = tidx * chunk_size, i_max = 0;
     double p_max = -DBL_MAX, p_temp;
 
     for (int i = offset; i < *n_states && i < offset + chunk_size; i++) {
-        p_temp = prev_probs[i] +
-                 transition_matrix[i * *n_states + bidx] +
-                 emission_matrix[bidx * *n_possible_observations +
-                                 *current_state];
+        p_temp = dev_prev_probs[i] + dev_tran_matrix[bidx] + dev_emi_cell;
         if (p_temp > p_max) {
             p_max = p_temp;
             i_max = i;
         }
     }
 
-    max_probs[tidx] = p_max;
-    max_indices[tidx] = i_max;
+    dev_max_probs[tidx] = p_max;
+    dev_max_indices[tidx] = i_max;
     __syncthreads();
 
     if (tidx == 0) {
         p_max = -DBL_MAX;
         for (int i = 0; i < blockDim.x && i < *n_states; i++) {
-            if (max_probs[i] > p_max) {
-                p_max = max_probs[i];
-                i_max = max_indices[i];
+            if (dev_max_probs[i] > p_max) {
+                p_max = dev_max_probs[i];
+                i_max = dev_max_indices[i];
             }
         }
-        curr_probs[bidx] = p_max;
-        backpaths[bidx] = i_max;
+        gpu_curr_probs[bidx] = p_max;
+        gpu_backpaths[bidx] = i_max;
+        printf("---------------> %d\n", gpu_curr_probs[bidx]);
         cudaDeviceSynchronize();
+
     }
+    __syncthreads();
 }
 
 __device__ void max(double const *vals, int n, double *max, int *idx_max) {
