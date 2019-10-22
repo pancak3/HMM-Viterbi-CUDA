@@ -94,7 +94,6 @@ __host__ int *viterbi_cuda(int n_states,
     int *gpu_current_state;
     cudaMalloc(&gpu_current_state, sizeof *gpu_current_state);
 
-    u_int64_t start = TimeStamp();
     for (int i = 1; i < n_actual_observations; i++) {
         max_probability << < n_states, THREADS_PER_BLOCK,
                 n_states * 3 * sizeof(double) +
@@ -229,17 +228,15 @@ __global__ void max_probability(int *n_states,
     double *dev_max_probs = dev_curr_probs + *n_states;
     int *dev_max_indices = (int *) (dev_max_probs + blockDim.x);
 
-    if (tidx == 0) {
-        for (int j = 0; j < dev_n_states; ++j) {
-            dev_tran_matrix[j] = transition_matrix[j * dev_n_states + bidx];
-            dev_prev_probs[j] = gpu_prev_probs[j];
-        }
-    }
-    __syncthreads();
-
     int chunk_size = ceil(__int2double_rn(*n_states) / blockDim.x);
     int offset = tidx * chunk_size, i_max = 0;
     double p_max = -DBL_MAX, p_temp;
+
+    for (int i = offset; i < *n_states && i < offset + chunk_size; i++) {
+        dev_tran_matrix[i] = transition_matrix[i * dev_n_states + bidx];
+        dev_prev_probs[i] = gpu_prev_probs[i];
+    }
+    __syncthreads();
 
     for (int i = offset; i < *n_states && i < offset + chunk_size; i++) {
         p_temp = dev_prev_probs[i] + dev_tran_matrix[i] + dev_emi_cell;
@@ -264,7 +261,7 @@ __global__ void max_probability(int *n_states,
         gpu_curr_probs[bidx] = p_max;
         gpu_backpaths[bidx] = i_max;
     }
-    __syncthreads();
+//    __syncthreads();
 }
 
 __device__ void max(double const *vals, int n, double *max, int *idx_max) {
