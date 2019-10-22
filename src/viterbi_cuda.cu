@@ -96,7 +96,8 @@ __host__ int *viterbi_cuda(int n_states,
         cudaMemcpy(gpu_current_state, actual_observations + i,
                    sizeof *gpu_current_state, cudaMemcpyHostToDevice);
         max_probability << < n_states, THREADS_PER_BLOCK,
-                n_states * 3 * sizeof(double) + 32 * 2 * sizeof(int) >> >
+                n_states * 3 * sizeof(double) +
+                THREADS_PER_BLOCK * (sizeof(int) + sizeof(double)) >> >
                 (gpu_n_states,
                         gpu_n_possible_obs,
                         gpu_trans,
@@ -252,7 +253,7 @@ __global__ void max_probability(int *n_states,
 
     if (tidx == 0) {
         p_max = -DBL_MAX;
-        for (int i = 0; i < blockDim.x && i < *n_states; i++) {
+        for (int i = 0; i < blockDim.x && i < dev_n_states; i++) {
             if (dev_max_probs[i] > p_max) {
                 p_max = dev_max_probs[i];
                 i_max = dev_max_indices[i];
