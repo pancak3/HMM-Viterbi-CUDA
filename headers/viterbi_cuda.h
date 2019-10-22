@@ -5,9 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-__host__ int *viterbi_cuda(int n_states, int n_observations,
-                           int const *observations, int observations_length,
-                           double const *init_probabilities,
+__host__ int *viterbi_cuda(int n_states,
+                           int n_possible_obs,
+                           int n_actual_obs,
+                           int *actual_obs,
+                           double *init_probabilities,
                            double **transition_matrix,
-                           double **emission_table,
-                           double ***probs_matrix_cuda);
+                           double **emission_table);
