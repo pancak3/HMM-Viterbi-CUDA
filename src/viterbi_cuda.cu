@@ -9,7 +9,7 @@ __global__ void max_probability(int *n_states,
                                 double *transition_matrix,
                                 double *emission_table,
                                 double *prev_probs,
-                                int *current_state,
+                                int current_obs,
                                 double *curr_probs,
                                 int *backpaths);
 
@@ -35,7 +35,8 @@ __host__ int *viterbi_cuda(int n_states,
     int *gpu_backpaths = NULL;
     cudaMalloc(&gpu_prev_probs, n_states * sizeof *gpu_prev_probs);
     cudaMalloc(&gpu_curr_probs, n_states * sizeof *gpu_curr_probs);
-    cudaMalloc(&gpu_backpaths, (n_states + 1) * sizeof *gpu_backpaths);
+    cudaMalloc(&gpu_backpaths,
+               n_states * n_actual_observations * sizeof *gpu_backpaths);
     assert(gpu_prev_probs && gpu_curr_probs && gpu_backpaths);
 
     // allocate buffer on device to store observation for each iteration
@@ -93,9 +94,8 @@ __host__ int *viterbi_cuda(int n_states,
     int *gpu_current_state;
     cudaMalloc(&gpu_current_state, sizeof *gpu_current_state);
 
+    u_int64_t start = TimeStamp();
     for (int i = 1; i < n_actual_observations; i++) {
-        cudaMemcpy(gpu_current_state, actual_observations + i,
-                   sizeof *gpu_current_state, cudaMemcpyHostToDevice);
         max_probability << < n_states, THREADS_PER_BLOCK,
                 n_states * 3 * sizeof(double) +
                 THREADS_PER_BLOCK * (sizeof(int) + sizeof(double)) >> >
@@ -104,13 +104,9 @@ __host__ int *viterbi_cuda(int n_states,
                         gpu_trans,
                         gpu_emission,
                         gpu_prev_probs,
-                        gpu_current_state,
+                        actual_observations[i],
                         gpu_curr_probs,
-                        gpu_backpaths);
-        cudaMemcpy(backpaths + i * n_actual_observations,
-                   gpu_backpaths,
-                   n_states * sizeof *backpaths,
-                   cudaMemcpyDeviceToHost);
+                        gpu_backpaths + i * n_actual_observations);
 //        memcpy(backpaths + i * n_actual_observations, paths_last,
 //               n_states * sizeof *paths_last);
 #ifdef DEBUG
@@ -134,6 +130,10 @@ __host__ int *viterbi_cuda(int n_states,
                    cudaMemcpyHostToDevice);
         memcpy(prob_matrix[i], temp, n_states * sizeof *temp);
     }
+    cudaMemcpy(backpaths, gpu_backpaths,
+               n_states * n_actual_observations * sizeof *backpaths,
+               cudaMemcpyDeviceToHost);
+
 #ifdef DEBUG
     printf("[CUDA PROBS TABLE]\n");
     printf("    ");
@@ -209,7 +209,7 @@ __global__ void max_probability(int *n_states,
                                 double *transition_matrix,
                                 double *emission_matrix,
                                 double *gpu_prev_probs,
-                                int *current_state,
+                                int current_obs,
                                 double *gpu_curr_probs,
                                 int *gpu_backpaths) {
 
@@ -219,9 +219,8 @@ __global__ void max_probability(int *n_states,
 
     int dev_n_states = *n_states;
     int dev_n_possible_obs = *n_possible_observations;
-    int dev_curr_state = *current_state;
     double dev_emi_cell = emission_matrix[bidx * dev_n_possible_obs +
-                                          dev_curr_state];
+                                          current_obs];
 
     double *dev_tran_matrix = shared_bank;
     double *dev_prev_probs = dev_tran_matrix + *n_states;
