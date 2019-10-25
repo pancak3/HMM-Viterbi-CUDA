@@ -35,16 +35,10 @@ __host__ int *viterbi_cuda(int n_states,
     assert(backpaths && optimal_path);
 
     // allocate gpu memory
-    int *gpu_n_states, *gpu_n_possible_obs, *gpu_n_actual_obs;
     double *gpu_trans;
     double *gpu_emission;
     int *gpu_actual_obs;
     int *gpu_backpaths;
-
-
-    cudaMalloc(&gpu_n_states, sizeof *gpu_n_states);
-    cudaMalloc(&gpu_n_possible_obs, sizeof *gpu_n_possible_obs);
-    cudaMalloc(&gpu_n_actual_obs, sizeof *gpu_n_actual_obs);
 
     cudaMalloc(&gpu_trans, n_states * n_states * sizeof *gpu_trans);
     cudaMalloc(&gpu_emission,
@@ -53,22 +47,8 @@ __host__ int *viterbi_cuda(int n_states,
     cudaMalloc(&gpu_backpaths,
                n_states * n_actual_obs * sizeof *gpu_backpaths);
 
-    // allocate buffers on device for HMM params and copy from host
-    cudaMemcpy(gpu_n_states,
-               &n_states,
-               sizeof n_states,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(gpu_n_possible_obs,
-               &n_possible_obs,
-               sizeof n_possible_obs,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(gpu_n_actual_obs,
-               &n_actual_obs,
-               sizeof n_actual_obs,
-               cudaMemcpyHostToDevice);
-
     cudaMemcpy(gpu_actual_obs,
-               &actual_obs,
+               actual_obs,
                n_actual_obs * sizeof gpu_actual_obs,
                cudaMemcpyHostToDevice);
 
@@ -83,22 +63,17 @@ __host__ int *viterbi_cuda(int n_states,
                    cudaMemcpyHostToDevice);
     }
 
-    viterbi_kernel << < n_states, THREADS_PER_BLOCK,
-            n_states * 3 * sizeof(double) +
-            THREADS_PER_BLOCK * (sizeof(int) + sizeof(double)
-                                 + n_states * n_actual_obs * sizeof(int)) >> >
+    size_t shared_mem_size = (THREADS_PER_BLOCK + 2 * n_states) * sizeof double
+                              + (THREADS_PER_BLOCK + n_states) * sizeof int;
+    viterbi_kernel<<<n_states, THREADS_PER_BLOCK, shared_mem_size>>>
             (n_states,
-                    n_possible_obs,
-                    n_actual_obs,
-                    gpu_trans,
-                    gpu_emission,
-                    gpu_actual_obs,
-                    init_probs,
-                    optimal_path);
-
-    cudaMemcpy(backpaths, gpu_backpaths,
-               n_states * n_actual_obs * sizeof *backpaths,
-               cudaMemcpyDeviceToHost);
+            n_possible_obs,
+            n_actual_obs,
+            gpu_trans,
+            gpu_emission,
+            gpu_actual_obs,
+            init_probs,
+            optimal_path);
 
 #ifdef DEBUG
     //    printf("[CUDA PROBS TABLE]\n");
@@ -183,58 +158,65 @@ __global__ void viterbi_kernel(int n_states,
     int const bidx = blockIdx.x;
     int const tidx = threadIdx.x;
 
-    int dev_n_states = n_states;
-    int dev_n_possible_obs = n_possible_obs;
-
-    double *dev_tran_matrix = shared_bank;
+    // pointer offsets into shared memory
+    double *dev_trans_probs = shared_bank;
     double *dev_prev_probs = dev_tran_matrix + n_states;
-    double *dev_curr_probs = dev_prev_probs + n_states;
-
-    double *dev_max_probs = dev_curr_probs + n_states;
+    double *dev_max_probs = dev_prev_probs + n_states;
     int *dev_max_indices = (int *) (dev_max_probs + blockDim.x);
-
     int *dev_backpaths = dev_max_indices + blockDim.x;
 
     int chunk_size = ceil(__int2double_rn(n_states) / blockDim.x);
-    int offset = tidx * chunk_size, i_max = 0;
-    double p_max = -DBL_MAX, p_temp;
+    int offset = tidx * chunk_size;
 
-    for (int i = offset; i < n_states && i < offset + chunk_size; i++) {
-        dev_prev_probs[i] = init_probs[i] +
-                            emission_matrix[i * dev_n_possible_obs +
+    // all threads calculate init state probabilities for its block
+    for (int j = offset; j < n_states && j < offset + chunk_size; j++) {
+        dev_prev_probs[j] = init_probs[j] +
+                            emission_matrix[j * dev_n_possible_obs +
                                             actual_obs[0]];
-        dev_tran_matrix[i] = trans_matrix[i * dev_n_states + bidx];
     }
-    g.sync();
 
-    for (int j = 0; j < n_actual_obs; ++j) {
-        double dev_emi_cell = 4.2;
-        for (int i = offset; i < dev_n_states && i < offset + chunk_size; i++) {
-            p_temp = dev_prev_probs[i] + dev_tran_matrix[i] + dev_emi_cell;
+    for (int i = 1; i < n_actual_obs; i++) {
+        // all threads copy in parallel from global to shared
+        for (int j = offset; j < n_states && j < offset + chunk_size; j++) {
+            dev_prev_probs[j] = dev_prev_probs[j] +
+                                emission_matrix[j * dev_n_possible_obs +
+                                                actual_obs[0]];
+            dev_trans_probs[j] = trans_matrix[j * dev_n_states + bidx];
+        }
+        double dev_emi_cell;
+        if (tidx == 0)
+            dev_emi_cell = emission_matrix[bidx * n_possible_obs
+                                           + actual_obs[i]];
+        __syncthreads();
+
+        // each thread in the block determines the max prob
+        double p_max = -DBL_MAX, p_temp; int i_max;
+        for (int j = offset; j < dev_n_states && j < offset + chunk_size; j++) {
+            p_temp = dev_prev_probs[j] + dev_tran_matrix[j] + dev_emi_cell;
             if (p_temp > p_max) {
                 p_max = p_temp;
-                i_max = i;
+                i_max = j;
             }
         }
         dev_max_probs[tidx] = p_max;
         dev_max_indices[tidx] = i_max;
         __syncthreads();
 
+        // thread 0 calculates max prob for cell being calculated by this block
         if (tidx == 0) {
             p_max = -DBL_MAX;
-            for (int i = 0; i < blockDim.x && i < dev_n_states; i++) {
-                if (dev_max_probs[i] > p_max) {
-                    p_max = dev_max_probs[i];
-                    i_max = dev_max_indices[i];
+            for (int j = 0; j < blockDim.x && j < dev_n_states; j++) {
+                if (dev_max_probs[j] > p_max) {
+                    p_max = dev_max_probs[j];
+                    i_max = dev_max_indices[j];
                 }
             }
             dev_prev_probs[bidx] = p_max;
-            dev_backpaths[j * dev_n_states + bidx] = i_max;
+            dev_backpaths[bidx] = i_max;
+            // need to copy dev_backpaths to correct column in global
         }
         g.sync();
     }
-
-//    __syncthreads();
 }
 
 __device__ void max(double const *vals, int n, double *max, int *idx_max) {
