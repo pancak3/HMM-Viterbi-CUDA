@@ -11,6 +11,8 @@
 #include "../headers/driver.h"
 #include "../headers/viterbi_sequential.h"
 #include "../headers/viterbi_cuda.h"
+#include "../headers/viterbi_cuda_before.h"
+#include "viterbi_cuda_before.cu"
 #include <sys/time.h>
 
 u_int64_t GetTimeStamp() {
@@ -69,21 +71,23 @@ int main(int argc, char const **argv) {
     }
     printf("\n");
 #endif // DEBUG
-    double **probs_matrix_sequential;
 
     u_int64_t start = GetTimeStamp();
+    int *optimal_path_sequential = viterbi_sequential(states, emissions,
+                                                      observation_table,
+                                                      observations_length,
+                                                      init_probabilities,
+                                                      transition_matrix,
+                                                      emission_table);
+    printf("SEQUENTIAL Time: %ld\n", GetTimeStamp() - start);
 
-//    int *optimal_path_sequential = viterbi_sequential(states, emissions,
-//                                                      observation_table,
-//                                                      observations_length,
-//                                                      init_probabilities,
-//                                                      transition_matrix,
-//                                                      emission_table,
-//                                                      &probs_matrix_sequential);
-//    printf("SEQUENTIAL Time: %ld\n", GetTimeStamp() - start);
+    int *t = viterbi_cuda_before(states, emissions, observation_table,
+                                 observations_length,
+                                 init_probabilities,
+                                 transition_matrix,
+                                 emission_table);
 
     start = GetTimeStamp();
-
     int *optimal_path_cuda = viterbi_cuda(states,
                                           emissions,
                                           observations_length,
@@ -92,31 +96,22 @@ int main(int argc, char const **argv) {
                                           transition_matrix,
                                           emission_table);
     printf("CUDA Time: %ld\n", GetTimeStamp() - start);
+#ifdef DEBUG
+    printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
+    for (int i = 0; i < observations_length; i++) {
+        printf("%3d ", optimal_path_sequential[i]);
+    }
+    putchar('\n');
 
-//#ifdef DEBUG
-//    printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
-//    for (int i = 0; i < observations_length; i++) {
-//        printf("%3d ", optimal_path_sequential[i]);
-//    }
-//    putchar('\n');
-//
-//    printf("[ CUDA OPTIMAL PATH ]\n");
-//    for (int i = 0; i < observations_length; i++) {
-//        printf("%3d ", optimal_path_cuda[i]);
-//    }
-//    putchar('\n');
+    printf("[ CUDA OPTIMAL PATH ]\n");
+    for (int i = 0; i < observations_length; i++) {
+        printf("%3d ", optimal_path_cuda[i]);
+    }
+    putchar('\n');
+#endif
 
-//#endif
-//    for (int k = 0; k < observations_length; ++k) {
-//        for (int i = 0; i < states; ++i) {
-//            if (probs_matrix_cuda[k][i] != probs_matrix_sequential[k][i]) {
-//                printf("(%d, %d)[PROBS ERR]\n(%e, %e)\n", k, i,
-//                       probs_matrix_cuda[k][i],
-//                       probs_matrix_sequential[k][i]);
-//            }
-//        }
-//    }
-
+    free(optimal_path_sequential);
+    free(optimal_path_cuda);
     free(init_probabilities);
     free_2D_memory(transition_matrix, states);
     free_2D_memory(emission_table, states);
