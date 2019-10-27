@@ -153,6 +153,7 @@ __host__ int *viterbi_cuda(int n_states,
 
     free(backpaths);
     free(probs);
+
     cudaFree(gpu_trans);
     cudaFree(gpu_emission);
     cudaFree(gpu_probs);

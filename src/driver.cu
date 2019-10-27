@@ -11,8 +11,6 @@
 #include "../headers/driver.h"
 #include "../headers/viterbi_sequential.h"
 #include "../headers/viterbi_cuda.h"
-#include "../headers/viterbi_cuda_before.h"
-#include "viterbi_cuda_before.cu"
 #include <sys/time.h>
 
 u_int64_t GetTimeStamp() {
@@ -81,12 +79,6 @@ int main(int argc, char const **argv) {
                                                       emission_table);
     printf("SEQUENTIAL Time: %ld\n", GetTimeStamp() - start);
 
-    int *t = viterbi_cuda_before(states, emissions, observation_table,
-                                 observations_length,
-                                 init_probabilities,
-                                 transition_matrix,
-                                 emission_table);
-
     start = GetTimeStamp();
     int *optimal_path_cuda = viterbi_cuda(states,
                                           emissions,
@@ -96,7 +88,7 @@ int main(int argc, char const **argv) {
                                           transition_matrix,
                                           emission_table);
     printf("CUDA Time: %ld\n", GetTimeStamp() - start);
-#ifdef DEBUG
+//#ifdef DEBUG
     printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
     for (int i = 0; i < observations_length; i++) {
         printf("%3d ", optimal_path_sequential[i]);
@@ -108,7 +100,7 @@ int main(int argc, char const **argv) {
         printf("%3d ", optimal_path_cuda[i]);
     }
     putchar('\n');
-#endif
+//#endif
 
     free(optimal_path_sequential);
     free(optimal_path_cuda);

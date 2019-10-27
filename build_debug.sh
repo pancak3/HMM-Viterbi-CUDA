@@ -12,7 +12,8 @@ nvcc -rdc=true \
   $SRC/$DRIVER \
   $SRC/$VITERBI_SEQUENTIAL \
   $SRC/$VITERBI_CUDA \
-  -o $BIN/driver_cuda
+  -o $BIN/driver_cuda \
+  -D DEBUG
 echo -e "done."
 echo -e "\t--> bin/driver_cuda"
 
