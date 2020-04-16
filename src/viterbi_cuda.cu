@@ -186,6 +186,7 @@ __global__ void viterbi_kernel(int n_states, int n_possible_obs,
             dev_max_probs[tidx] = dev_max_probs[tidx + 16];
             dev_max_indices[tidx] = dev_max_indices[tidx + 16];
         }
+
         if (dev_max_probs[tidx] < dev_max_probs[tidx + 8]) {
             dev_max_probs[tidx] = dev_max_probs[tidx + 8];
             dev_max_indices[tidx] = dev_max_indices[tidx + 8];
@@ -203,12 +204,14 @@ __global__ void viterbi_kernel(int n_states, int n_possible_obs,
             dev_max_indices[tidx] = dev_max_indices[tidx + 1];
         }
     }
-    // thread 0 find the max prob for cell of its block
+
+//     thread 0 find the max prob for cell of its block
     if (tidx == 0) {
         global_probs[current_t * n_states + bidx] = dev_max_probs[0];
         global_backpaths[current_t * n_states + bidx] = dev_max_indices[0];
     }
     __syncthreads();
+
 }
 
 __global__ void back_track_kernel(double *probs, int n_threads, int *out_idx) {
@@ -258,6 +261,7 @@ __global__ void back_track_kernel(double *probs, int n_threads, int *out_idx) {
             max_idx[tidx] = max_idx[tidx + 1];
         }
     }
-    if (tidx == 0) *out_idx = max_idx[0];
+
+    if (tidx == 0) *out_idx = max_idx[1];
     __syncthreads();
 };
