@@ -14,93 +14,93 @@
 #include "../headers/viterbi_sequential.h"
 
 u_int64_t GetTimeStamp() {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * (u_int64_t) 1000000 + tv.tv_usec;
 }
 
-int main(int argc, char const** argv) {
-	// read in the number of possible hidden states and emissions
-	int states, emissions, observations_length;
-	if (scanf("%d %d", &states, &emissions) != 2) {
+int main(int argc, char const **argv) {
+    // read in the number of possible hidden states and emissions
+    int states, emissions, observations_length;
+    if (scanf("%d %d", &states, &emissions) != 2) {
 #ifdef DEBUG
-		fprintf(stderr, "Cannot read # possible states and emissions.\n");
+        fprintf(stderr, "Cannot read # possible states and emissions.\n");
 #endif // DEBUG
-		exit(EXIT_FAILURE);
-	}
-	double* init_probabilities = read_init_probabilities(stdin, states);
-	double** transition_matrix = read_transition_matrix(stdin, states);
-	double** emission_table = read_emission_table(stdin, states, emissions);
-	scanf("%d", &observations_length);
-	int* observation_table = read_observation(stdin, observations_length);
+        exit(EXIT_FAILURE);
+    }
+    double *init_probabilities = read_init_probabilities(stdin, states);
+    double **transition_matrix = read_transition_matrix(stdin, states);
+    double **emission_table = read_emission_table(stdin, states, emissions);
+    scanf("%d", &observations_length);
+    int *observation_table = read_observation(stdin, observations_length);
 
-	for (int i = 0; i < states; i++) {
-		init_probabilities[i] = log(init_probabilities[i]);
-		for (int j = 0; j < states; j++)
-			transition_matrix[i][j] = log(transition_matrix[i][j]);
-		for (int j = 0; j < emissions; j++)
-			emission_table[i][j] = log(emission_table[i][j]);
-	}
-	printf("States: %d, Emissions: %d, Observation_length: %d\n", states,
-		   emissions, observations_length);
+    for (int i = 0; i < states; i++) {
+        init_probabilities[i] = log(init_probabilities[i]);
+        for (int j = 0; j < states; j++)
+            transition_matrix[i][j] = log(transition_matrix[i][j]);
+        for (int j = 0; j < emissions; j++)
+            emission_table[i][j] = log(emission_table[i][j]);
+    }
+    printf("States: %d, Emissions: %d, Observation_length: %d\n", states,
+           emissions, observations_length);
 
 #ifdef DEBUG
 
-	printf("[INIT PROBABILITIES]\n");
-	for (int i = 0; i < states; i++)
-		printf("%.4e ", init_probabilities[i]);
-	printf("\n");
-	printf("[EMISSION PROBABILITIES]\n");
-	for (int i = 0; i < states; i++) {
-		for (int j = 0; j < emissions; j++)
-			printf("%.4e ", emission_table[i][j]);
-		printf("\n");
-	}
-	printf("[TRANSITION MATRIX]\n");
-	for (int i = 0; i < states; i++) {
-		for (int j = 0; j < states; j++)
-			printf("%.4e ", transition_matrix[i][j]);
-		printf("\n");
-	}
+    printf("[INIT PROBABILITIES]\n");
+    for (int i = 0; i < states; i++)
+        printf("%.4e ", init_probabilities[i]);
+    printf("\n");
+    printf("[EMISSION PROBABILITIES]\n");
+    for (int i = 0; i < states; i++) {
+        for (int j = 0; j < emissions; j++)
+            printf("%.4e ", emission_table[i][j]);
+        printf("\n");
+    }
+    printf("[TRANSITION MATRIX]\n");
+    for (int i = 0; i < states; i++) {
+        for (int j = 0; j < states; j++)
+            printf("%.4e ", transition_matrix[i][j]);
+        printf("\n");
+    }
 
-	printf("[OBSERVATION TABLE]\n");
-	for (int i = 0; i < observations_length; i++) {
-		printf("%d ", observation_table[i]);
-	}
-	printf("\n");
+    printf("[OBSERVATION TABLE]\n");
+    for (int i = 0; i < observations_length; i++) {
+        printf("%d ", observation_table[i]);
+    }
+    printf("\n");
 #endif // DEBUG
 
-	u_int64_t start = GetTimeStamp();
-	int* optimal_path_sequential = viterbi_sequential(
-		states, emissions, observation_table, observations_length,
-		init_probabilities, transition_matrix, emission_table);
-	printf("SEQUENTIAL Time: %ld\n", GetTimeStamp() - start);
+    u_int64_t start = GetTimeStamp();
+    int *optimal_path_sequential = viterbi_sequential(
+            states, emissions, observation_table, observations_length,
+            init_probabilities, transition_matrix, emission_table);
+    printf("SEQUENTIAL Time: %ld\n", GetTimeStamp() - start);
 
-	start = GetTimeStamp();
-	int* optimal_path_cuda =
-		viterbi_cuda(states, emissions, observations_length, observation_table,
-					 init_probabilities, transition_matrix, emission_table);
-	printf("CUDA Time: %ld\n", GetTimeStamp() - start);
-	//#ifdef DEBUG
-	printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
-	for (int i = 0; i < observations_length; i++) {
-		printf("%3d ", optimal_path_sequential[i]);
-	}
-	putchar('\n');
+    start = GetTimeStamp();
+    int *optimal_path_cuda =
+            viterbi_cuda(states, emissions, observations_length, observation_table,
+                         init_probabilities, transition_matrix, emission_table);
+    printf("CUDA Time: %ld\n", GetTimeStamp() - start);
+    //#ifdef DEBUG
+    printf("[ SEQUENTIAL OPTIMAL PATH ]\n");
+    bool flag;
+    flag = true;
+    for (int i = 0; i < observations_length; i++) {
+        if (optimal_path_sequential[i] != optimal_path_cuda[i]) {
+            printf("Wrong Ans!\n");
+            flag = false;
+            break;
+        }
+    }
+    if (flag) printf("Right Ans!\n");
+    //#endif
 
-	printf("[ CUDA OPTIMAL PATH ]\n");
-	for (int i = 0; i < observations_length; i++) {
-		printf("%3d ", optimal_path_cuda[i]);
-	}
-	putchar('\n');
-	//#endif
-
-	free(optimal_path_sequential);
-	free(optimal_path_cuda);
-	free(init_probabilities);
-	free_2D_memory(transition_matrix, states);
-	free_2D_memory(emission_table, states);
-	return 0;
+    free(optimal_path_sequential);
+    free(optimal_path_cuda);
+    free(init_probabilities);
+    free_2D_memory(transition_matrix, states);
+    free_2D_memory(emission_table, states);
+    return 0;
 }
 
 /**
@@ -110,17 +110,17 @@ int main(int argc, char const** argv) {
  * @param states Number of possible states
  * @return Pointer to array of initial probabilities
  */
-double* read_init_probabilities(FILE* f, int states) {
-	// allocate memory
-	double* init_probs = (double*)malloc(states * sizeof(double));
-	assert(init_probs);
+double *read_init_probabilities(FILE *f, int states) {
+    // allocate memory
+    double *init_probs = (double *) malloc(states * sizeof(double));
+    assert(init_probs);
 
-	// read in values
-	for (int i = 0; i < states; i++)
-		if (!fscanf(f, "%lf", init_probs + i))
-			return NULL;
+    // read in values
+    for (int i = 0; i < states; i++)
+        if (!fscanf(f, "%lf", init_probs + i))
+            return NULL;
 
-	return init_probs;
+    return init_probs;
 }
 
 /**
@@ -130,17 +130,17 @@ double* read_init_probabilities(FILE* f, int states) {
  * @param observations Number of observations table
  * @return Pointer to array of observations table
  */
-int* read_observation(FILE* f, int observations) {
-	// allocate memory
-	int* observations_table = (int*)malloc(observations * sizeof(int));
-	assert(observations_table);
+int *read_observation(FILE *f, int observations) {
+    // allocate memory
+    int *observations_table = (int *) malloc(observations * sizeof(int));
+    assert(observations_table);
 
-	// read in values
-	for (int i = 0; i < observations; i++)
-		if (!fscanf(f, "%d", observations_table + i))
-			return NULL;
+    // read in values
+    for (int i = 0; i < observations; i++)
+        if (!fscanf(f, "%d", observations_table + i))
+            return NULL;
 
-	return observations_table;
+    return observations_table;
 }
 
 /**
@@ -150,22 +150,22 @@ int* read_observation(FILE* f, int observations) {
  * @param states Number of possible states (matrix width)
  * @return Pointer to transition matrix
  */
-double** read_transition_matrix(FILE* f, int states) {
-	// allocate memory
-	double** transition_matrix = (double**)malloc(states * sizeof(double*));
-	assert(transition_matrix);
-	for (int i = 0; i < states; i++) {
-		transition_matrix[i] = (double*)malloc(states * sizeof(double));
-		assert(transition_matrix[i]);
-	}
+double **read_transition_matrix(FILE *f, int states) {
+    // allocate memory
+    double **transition_matrix = (double **) malloc(states * sizeof(double *));
+    assert(transition_matrix);
+    for (int i = 0; i < states; i++) {
+        transition_matrix[i] = (double *) malloc(states * sizeof(double));
+        assert(transition_matrix[i]);
+    }
 
-	// read in values
-	for (int i = 0; i < states; i++)
-		for (int j = 0; j < states; j++)
-			if (!fscanf(f, "%lf", transition_matrix[i] + j))
-				return NULL;
+    // read in values
+    for (int i = 0; i < states; i++)
+        for (int j = 0; j < states; j++)
+            if (!fscanf(f, "%lf", transition_matrix[i] + j))
+                return NULL;
 
-	return transition_matrix;
+    return transition_matrix;
 }
 
 /**
@@ -176,22 +176,22 @@ double** read_transition_matrix(FILE* f, int states) {
  * @param emissions Number of possible emissions (table width)
  * @return Pointer to emission probability table
  */
-double** read_emission_table(FILE* f, int states, int emissions) {
-	// allocate memory
-	double** table = (double**)malloc(states * sizeof(double*));
-	assert(table);
-	for (int i = 0; i < states; i++) {
-		table[i] = (double*)malloc(emissions * sizeof(double));
-		assert(table[i]);
-	}
+double **read_emission_table(FILE *f, int states, int emissions) {
+    // allocate memory
+    double **table = (double **) malloc(states * sizeof(double *));
+    assert(table);
+    for (int i = 0; i < states; i++) {
+        table[i] = (double *) malloc(emissions * sizeof(double));
+        assert(table[i]);
+    }
 
-	// read in values
-	for (int i = 0; i < states; i++)
-		for (int j = 0; j < emissions; j++)
-			if (!fscanf(f, "%lf", table[i] + j))
-				return NULL;
+    // read in values
+    for (int i = 0; i < states; i++)
+        for (int j = 0; j < emissions; j++)
+            if (!fscanf(f, "%lf", table[i] + j))
+                return NULL;
 
-	return table;
+    return table;
 }
 
 /**
@@ -199,10 +199,10 @@ double** read_emission_table(FILE* f, int states, int emissions) {
  * @param table Pointer to table
  * @param states Number of rows
  */
-void free_2D_memory(double** table, int rows) {
-	if (!table)
-		return;
-	for (int i = 0; i < rows; i++)
-		free(table[i]);
-	free(table);
+void free_2D_memory(double **table, int rows) {
+    if (!table)
+        return;
+    for (int i = 0; i < rows; i++)
+        free(table[i]);
+    free(table);
 }
