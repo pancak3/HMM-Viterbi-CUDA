@@ -1,31 +1,11 @@
-CUDA_INSTALL_PATH := /usr/local/cuda
+driver_cuda:
+	gcc util/generator.c -o bin/generator
+	nvcc -rdc=true -arch=sm_50 src/driver.cu src/viterbi_sequential.cu src/viterbi_cuda.cu -o bin/driver_cuda
+debug:
+	gcc util/generator.c -o bin/generator
+	nvcc -D DEBUG -rdc=true -arch=sm_50 src/driver.cu src/viterbi_sequential.cu src/viterbi_cuda.cu -o bin/driver_cuda
+clean:
+	rm -rf $(EXE) *.o obj
+format:
+	find . -name "*.c" -or -name "*.cu"  -or -name "*.h"| xargs clang-format -style=file -i -fallback-style=none
 
-CXX := g++
-CC := gcc
-LINK := g++ -fPIC
-NVCC  := nvcc
-
-# Includes
-INCLUDES = -I. -I$(CUDA_INSTALL_PATH)/include
-
-# Common flags
-COMMONFLAGS += $(INCLUDES)
-NVCCFLAGS += $(COMMONFLAGS)
-CXXFLAGS += $(COMMONFLAGS)
-CFLAGS += $(COMMONFLAGS)
-
-LIB_CUDA := -L$(CUDA_INSTALL_PATH)/lib -lcudart
-OBJS = viterbi_sequential.cu.o driver.cu.o
-TARGET = driver
-LINKLINE = $(LINK) -o $(TARGET) $(OBJS) $(LIB_CUDA)
-
-.SUFFIXES: .c .cpp .cu .o
-
-%.c.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-%.cu.o: %.cu
-	$(NVCC) $(NVCCFLAGS) -c $< -o $@
-%.cpp.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-$(TARGET): $(OBJS) Makefile
-	$(LINKLINE)

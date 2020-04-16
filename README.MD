@@ -11,7 +11,8 @@ Our algorithms were tested on `Ubuntu 18.04` with `Nvidia Pascal P100`, due to t
 ## Dependency
 -   [CUDA 10.1](https://developer.nvidia.com/cuda-10.1-download-archive
 )
--   GCC ~ 7.4.0
+-   GCC 7.5.0
+-   G++ 7.5.0
  
 ## Environment
 + PATH=$PATH:/usr/local/cuda-10.1/bin

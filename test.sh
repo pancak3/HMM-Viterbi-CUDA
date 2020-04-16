@@ -1,3 +1,4 @@
+#!/bin/bash
 check_n_state() {
   echo "1000 1000 $1" >gen_in
   ./bin/generator <gen_in >tmp.in
@@ -9,3 +10,4 @@ for ((i = 100; i < 1000; i += 20)); do
   check_n_state $i
   echo "1000 1000 $i done."
 done
+rm -rf "*.in"
