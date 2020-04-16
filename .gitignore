@@ -7,3 +7,5 @@ input
 
 bin/
 obj/
+*.in
+*.out
